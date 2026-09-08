@@ -1,21 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 #render template is what allows us to pull from a templated folder
 
-app = Flask(__name__)
-
-#@app.route("/", methods=["GET"])
-@app.route("/hello", methods=["GET"])
-#@app.route("/hello/<name>", methods=["GET"])
-def get_hello(name= "World"):
-    #return f"""
-    #<html><h1>Hello, {name}!
-    #<html>
-    #"""
-    return render_template("hello.html", name=name)
-
-
-
-'''
 import sqlite3
 from pprint import pprint
 
@@ -28,13 +13,23 @@ app = Flask(__name__)
 @app.route("/", methods=["GET"])
 @app.route("/hello", methods=["GET"])
 @app.route("/hello/<name>", methods=["GET"])
-def get_hello(name="world"):
-    # return f"<html><h1>Hello, {name}!<html>"
+def get_hello(name= "World"):
+    # Better to use templates that injected HTML bc it seperates code
+    # and it easier to debug. Also cleaner
     return render_template("hello.html", name=name)
 
 @app.route("/bye", methods=["GET"])
 def get_bye():
     return "Bye!"
+
+# my own route
+# the first /love is the first page in the /love route and will fill the
+# message with a generic value "love"
+# anything after /love'/...' would be used as a variable for message
+@app.route("/love", methods=["GET"])
+@app.route("/love/<message>", methods=["GET"])
+def get_love(message="love"):
+    return f"<html> Love you too <3, {message}</html>"
 
 @app.route("/pets", methods=["GET"])
 def get_pets():
@@ -45,6 +40,7 @@ def get_pets():
     pprint(rows)
     return render_template("pets.html", pets=rows)
 
+'''
 @app.route("/create", methods=["GET"])
 def get_create():
     return render_template("create.html")

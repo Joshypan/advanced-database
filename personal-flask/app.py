@@ -40,7 +40,6 @@ def get_pets():
     pprint(rows)
     return render_template("pets.html", pets=rows)
 
-'''
 @app.route("/create", methods=["GET"])
 def get_create():
     return render_template("create.html")
@@ -53,6 +52,8 @@ def post_create():
     rows = cursor.fetchall()
     connection.commit()
     return redirect(url_for("get_pets"))
+
+'''
 
 @app.route("/update")
 @app.route("/update/<id>", methods=["GET"])

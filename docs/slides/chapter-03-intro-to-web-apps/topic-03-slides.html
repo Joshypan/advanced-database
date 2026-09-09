@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 3: Introduction to Web Applications</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="introduction-to-web-applications">Introduction to Web
+Applications</h1>
+<p>A browser interface for the pet database</p>
+<aside class="notes">The earlier script ran a fixed sequence and stopped. This application waits for requests. Same SQLite database operations, now selected by user actions. Story: address and request, route and template, form submission, saved state, fresh display. Source: chapter-03-intro-to-web-apps.md and ../../topic-03-intro-to-web-apps/app.py and templates/. Code excerpts use adjusted line breaks. Simplifications identified with their examples below.</aside></section>
+<section><h2 id="the-pet-application">The Pet Application</h2>
+<ul>
+<li>Requests select Python functions.</li>
+<li>Templates produce browser pages.</li>
+<li>Forms supply values for database operations.</li>
+<li>Saved records survive the server stopping.</li>
+</ul>
+<aside class="notes">Browser, Python process, database file. Separate places where values exist. Hypertext Transfer Protocol (HTTP) carries requests and responses. Hypertext Markup Language (HTML) describes the returned pages. Structured Query Language (SQL) expresses database operations. Persistence cycle now spans separate requests rather than one uninterrupted script.</aside></section>
+<section><h2 id="running-flask">Running Flask</h2>
+<p>From a working copy of <code>topic-03-intro-to-web-apps</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
+<pre class="text"><code>http://127.0.0.1:5000/pets</code></pre>
+<p>The supplied <code>pets.db</code> holds the existing records.</p>
+<aside class="notes">New environment: python3 -m venv .venv, source .venv/bin/activate, pip install flask. Flask discovers app.py and its app object. Explicit equivalent: flask --app app run. Flask run --port 5001 for an occupied port. Local development server. Keep terminal running, Control-C to stop. Database filename is relative to working directory. Wrong directory can create an empty pets.db without a pet table. This app does not rebuild the database at startup. Reference: https://flask.palletsprojects.com/en/stable/quickstart/.</aside></section>
+<section><h2 id="reading-a-url">Reading a URL</h2>
+<p>Uniform Resource Locator (URL)</p>
+<pre class="text"><code>http://127.0.0.1:5000/pets</code></pre>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http</code></td>
+<td>Protocol scheme</td>
+</tr>
+<tr>
+<td><code>127.0.0.1</code></td>
+<td>This computer’s loopback address</td>
+</tr>
+<tr>
+<td><code>5000</code></td>
+<td>Port</td>
+</tr>
+<tr>
+<td><code>/pets</code></td>
+<td>Requested path</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Topic example.txt starts with a hostname. Domain Name System (DNS) resolves names to Internet Protocol (IP) addresses. A port directs a connection to a service. HTTPS uses encrypted HTTP, normally port 443. HTTP normally uses port 80, but local Flask uses 5000. The /pets path selects application code, without requiring a file named pets. Catalog discussion examples: /catalog/blenders versus /catalog?category=blenders. Path variable versus query parameter. Neither catalog route exists in the supplied app. Query values need no literal quotes.</aside></section>
+<section><h2 id="a-request-calls-a-function">A Request Calls a Function</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/bye&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_bye():</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">&quot;Bye!&quot;</span></span></code></pre></div>
+<p><code>GET /bye</code> receives <code>Bye!</code></p>
+<aside class="notes">app = Flask(__name__) creates the application. The decorator registers a route. Defining the function does not send a response until a matching request arrives. GET requests a representation. The return value becomes a response with status, headers, and a body. Function names are for Python and endpoint lookup. The route determines the accepted path and method.</aside></section>
+<section><h2 id="a-value-in-the-path">A Value in the Path</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/hello/&lt;name&gt;&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_hello(name<span class="op">=</span><span class="st">&quot;world&quot;</span>):</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> render_template(<span class="st">&quot;hello.html&quot;</span>, name<span class="op">=</span>name)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">body</span><span class="dt">&gt;</span>Hello, {{ name }}! (from the template)<span class="dt">&lt;/</span><span class="kw">body</span><span class="dt">&gt;</span></span></code></pre></div>
+<p><code>/hello/Ada</code> displays <strong>Hello, Ada! (from the
+template)</strong></p>
+<aside class="notes">Excerpt omits the additional / and /hello decorators, which use the default world. The path supplies name as a string. render_template passes it to Jinja. Double braces insert a value. Jinja evaluates on the server. Browser receives completed HTML, not Python or Jinja source. HTML templates automatically escape ordinary inserted strings, so angle brackets in a name display as text. Reference: https://flask.palletsprojects.com/en/stable/quickstart/#rendering-templates.</aside></section>
+<section><h2 id="loading-the-pet-list">Loading the Pet List</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(<span class="st">&quot;select * from pet&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> cursor.fetchall()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> render_template(<span class="st">&quot;pets.html&quot;</span>, pets<span class="op">=</span>rows)</span></code></pre></div>
+<pre class="text"><code>(id, name, kind, age, food)</code></pre>
+<p>Each returned tuple becomes one displayed row.</p>
+<aside class="notes">Body excerpt from get_pets, omitting pprint debugging output. rows is a list of tuples. Schema order supplies the tuple positions because SELECT * uses all columns. pprint goes to server terminal, not browser. Query has no ORDER BY, so no promised display order. pets.db contains persistent records; rows contains values loaded for this response. The unused list.html belongs to the commented list demonstration.</aside></section>
+<section><h2 id="a-template-builds-the-table">A Template Builds the Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{% for pet in pets %}</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tr</span><span class="dt">&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {% for item in pet %}</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">td</span><span class="dt">&gt;</span>{{ item }}<span class="dt">&lt;/</span><span class="kw">td</span><span class="dt">&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {% endfor %}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tr</span><span class="dt">&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>{% endfor %}</span></code></pre></div>
+<p><code>{% ... %}</code> controls the loop. <code>{{ ... }}</code>
+inserts a value.</p>
+<aside class="notes">Excerpt omits edit/delete cells for focus. Outer loop creates rows. Inner loop creates cells. Full template links /update/{{pet[0]}} and /delete/{{pet[0]}} using the identifier in the first tuple position. Identifier is not the displayed row number. Two pets can share a name. Bootstrap styles and external icon fonts affect appearance rather than database behavior.</aside></section>
+<section><h2 id="opening-and-submitting-a-form">Opening and Submitting a
+Form</h2>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Function</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /create</code></td>
+<td><code>get_create</code></td>
+<td>Blank form</td>
+</tr>
+<tr>
+<td><code>POST /create</code></td>
+<td><code>post_create</code></td>
+<td>Saved pet, then redirect</td>
+</tr>
+</tbody>
+</table>
+<p>Same path. Different methods and work.</p>
+<aside class="notes">Opening the form does not insert a record. Typing changes browser input values only. Submitting creates a new request with the form fields. Flask selects separate functions using the method. POST data goes in the request body for this form. GET is for retrieving a representation, not changing stored records. Reference: https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Sending_and_retrieving_form_data.</aside></section>
+<section><h2 id="named-inputs-become-form-values">Named Inputs Become Form
+Values</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">form</span><span class="ot"> action</span><span class="op">=</span><span class="st">&quot;/create&quot;</span><span class="ot"> method</span><span class="op">=</span><span class="st">&quot;post&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;name&quot;</span><span class="dt">/&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;age&quot;</span><span class="dt">/&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">button</span><span class="ot"> type</span><span class="op">=</span><span class="st">&quot;submit&quot;</span><span class="dt">&gt;</span>Create<span class="dt">&lt;/</span><span class="kw">button</span><span class="dt">&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">form</span><span class="dt">&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> <span class="bu">dict</span>(request.form)</span></code></pre></div>
+<p><code>data["age"]</code> arrives as a string.</p>
+<aside class="notes">Shortened form shows only name and age. Full create.html also supplies kind and food, plus labels and a Cancel link. action sets destination. method sets request method. Input name supplies the key, not the nearby visible label. Browser sends age as text. Cancel follows /pets without submitting. Creation binds submitted age directly; update tries int conversion. Neither approach is complete input validation.</aside></section>
+<section><h2 id="saving-the-new-pet">Saving the New Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet(name, kind, age, food) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?, ?, ?, ?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (data[<span class="st">&quot;name&quot;</span>], data[<span class="st">&quot;kind&quot;</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>     data[<span class="st">&quot;age&quot;</span>], data[<span class="st">&quot;food&quot;</span>])</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>SQLite supplies the identifier.</p>
+<aside class="notes">Equivalent excerpt from post_create. Adjacent string literals join in Python. Parameters keep supplied values separate from SQL syntax. O&#x27;Malley works without manually quoting an SQL string. Omitted cursor assignment and unused fetchall: INSERT without RETURNING yields no rows to fetch. execute performs the insertion; fetching does not execute it. Commit completes the transaction. Route next returns redirect(url_for(&quot;get_pets&quot;)).</aside></section>
+<section><h2 id="after-the-save">After the Save</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /create</code></td>
+<td>Insert and commit</td>
+</tr>
+<tr>
+<td><code>302</code> response</td>
+<td>Redirect browser to <code>/pets</code></td>
+</tr>
+<tr>
+<td><code>GET /pets</code></td>
+<td>Query and display saved records</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Post/Redirect/Get. url_for uses the endpoint function name, not a literal path. Redirect response tells browser where to request next. The redirect itself does not render pets.html or transfer the Python rows variable. The subsequent request runs get_pets and reads the saved database state. Refreshing the final page repeats the list request rather than ordinarily repeating the insertion. Browser network tools show these separate exchanges.</aside></section>
+<section><h2 id="editing-pet-3">Editing Pet 3</h2>
+<pre class="text"><code>GET /update/3</code></pre>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cursor.execute(<span class="st">&quot;SELECT * FROM pet WHERE id = ?&quot;</span>, (<span class="bu">id</span>,))</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">form</span><span class="ot"> action</span><span class="op">=</span><span class="st">&quot;/update/{{data[&#39;id&#39;]}}&quot;</span><span class="ot"> method</span><span class="op">=</span><span class="st">&quot;post&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;name&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;name&#39;]}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
+<p>The loaded value becomes the form’s starting value.</p>
+<aside class="notes">Query excerpt drops unnecessary f-string prefix. Route converts id to int, fetches row, unpacks id/name/kind/age/food, builds data dictionary, then renders update.html. Form excerpt only shows name. Identifier 3 is illustrative and needs an existing row for a live example. Form action becomes /update/3. Editing a browser field does not mutate that earlier Python dictionary or stored record. Missing row produces error template; nonnumeric id fails before existing try block.</aside></section>
+<section><h2 id="the-persistence-cycle-in-an-edit">The Persistence Cycle in an
+Edit</h2>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Pet application</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Determining Action</td>
+<td>Choose Edit for pet 3</td>
+</tr>
+<tr>
+<td>Loading State</td>
+<td><code>GET /update/3</code> reads the record</td>
+</tr>
+<tr>
+<td>Taking Action</td>
+<td>Change fields in the browser</td>
+</tr>
+<tr>
+<td>Saving State</td>
+<td><code>POST /update/3</code> updates and commits</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Display State</strong> can happen anywhere in the cycle.</p>
+<aside class="notes">Edit form displays loaded state. Browser displays typed changes before saving. Redirect displays saved state through a fresh list query. POST handler obtains submitted values and runs UPDATE with four new values and id as parameters. HTTP does not keep one Python function call alive across these requests. The identifier connects the submitted form to its stored record. Restarting the server preserves committed database state, but recreates the in-memory connection and later result objects.</aside></section>
+<section><h2 id="deletion-and-invalid-input">Deletion and Invalid Input</h2>
+<table>
+<thead>
+<tr>
+<th>Current example</th>
+<th>Better behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /delete/3</code> deletes</td>
+<td>Submit a <code>POST</code> to delete</td>
+</tr>
+<tr>
+<td>Invalid age becomes <code>0</code></td>
+<td>Reject it and explain the error</td>
+</tr>
+<tr>
+<td>Missing record shows a page</td>
+<td>Return a suitable error status too</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">GET should not change stored state. The teaching app uses a deletion link for convenience. A finished version also needs protection against cross-site request forgery, where another site induces an unwanted request. Error template defaults to status 200; missing record normally warrants 404. Existing broad except hides distinctions. Extra @app.route(&quot;/update&quot;) on both update functions registers GET, including on post_update. POST /update is not registered; saving uses POST /update/&lt;id&gt;. Decorators control routing, not function names. Chapter exercises explore corrections.</aside></section>
+<section><h2 id="tracing-an-application-operation">Tracing an Application
+Operation</h2>
+<p><strong>Request:</strong> Which path and method?</p>
+<p><strong>Route:</strong> Which values and database operation?</p>
+<p><strong>Response:</strong> A page, a redirect, or an error?</p>
+<p>The database preserves state between requests.</p>
+<aside class="notes">Trace a single pet creation or edit end to end when debugging. Browser fields, Python dictionaries, database rows are separate representations. Changes require explicit saving. Global connection with check_same_thread=False disables a thread guard, without making concurrent use safe. Request-scoped connection management is a next refinement: https://flask.palletsprojects.com/en/stable/tutorial/database/. Database abstraction will collect repeated operations behind functions. Closing advice: trace the request and verify the saved record before changing more code.</aside></section></div></div>
+<script src="slide-assets/reveal.js"></script><script src="slide-assets/notes.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none',plugins:[RevealNotes]});</script>
+</body></html>

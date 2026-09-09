@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 2: SQL in Python</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="sql-in-python">SQL in Python</h1>
+<p>Python supplies the values and decides what happens next.</p>
+<aside class="notes">Structured Query Language (SQL) remains the language of the database operations. Python supplies program control and in-memory values. Source: chapter-02-sql-in-python.md and ../../topic-02-sql-in-python/db-example.py. Code blocks use readable line breaks; smaller variations are identified in the notes.</aside></section>
+<section><h2 id="running-the-example">Running the Example</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> db-example.py <span class="at">--db</span> practice.db</span></code></pre></div>
+<p>The script rebuilds the <code>pet</code> table on every run.</p>
+<aside class="notes">Run from topic-02-sql-in-python. Separate practice database. Without --db, pets.db is the default in the working directory. Repeatable demonstration, not startup behavior for an application preserving user records.</aside></section>
+<section><h2 id="choosing-a-database">Choosing a Database</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> argparse</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>ap <span class="op">=</span> argparse.ArgumentParser()</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>ap.add_argument(<span class="st">&quot;--db&quot;</span>, default<span class="op">=</span><span class="st">&quot;pets.db&quot;</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>args <span class="op">=</span> ap.parse_args()</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection <span class="op">=</span> sqlite3.<span class="ex">connect</span>(args.db)</span></code></pre></div>
+<p><code>args.db</code> supplies the filename.</p>
+<aside class="notes">argparse reads command-line arguments; sqlite3 opens the connection. The source also imports pprint for readable output. The connection is a Python object; the file can survive the process. Relative filenames depend on the current working directory. References: https://docs.python.org/3/library/argparse.html and https://docs.python.org/3/library/sqlite3.html.</aside></section>
+<section><h2 id="python-calls-sql-statements">Python Calls, SQL Statements</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(<span class="st">&quot;drop table if exists pet&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>Python calls the method. SQLite interprets the string.</p>
+<aside class="notes">IF EXISTS permits a fresh database with no pet table. An existing pet table and its rows are removed. The next CREATE TABLE restores the familiar id, name, kind, age, food definition. Triple-quoted Python strings hold multiline SQL. Syntactically valid Python can contain invalid SQL.</aside></section>
+<section><h2 id="inspecting-the-tables">Inspecting the Tables</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(<span class="st">&quot;&quot;&quot;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="st">    SELECT name FROM sqlite_master</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="st">    WHERE type = &#39;table&#39; ORDER BY name</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;&quot;&quot;</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>list_of_tables <span class="op">=</span> [item[<span class="dv">0</span>] <span class="cf">for</span> item <span class="kw">in</span> cursor.fetchall()]</span></code></pre></div>
+<pre class="text"><code>[&#39;pet&#39;, &#39;sqlite_sequence&#39;]</code></pre>
+<aside class="notes">SQL query replaces the shell&#x27;s .tables command. sqlite_master names the schema table. Each one-column result is still a tuple; item[0] extracts the name. The result shown is after creating pet. sqlite_sequence may remain from an earlier run even after dropping pet, so the initial list is not always empty.</aside></section>
+<section><h2 id="sql-and-values-travel-separately">SQL and Values Travel
+Separately</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet (name, kind, age, food) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?, ?, ?, ?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Dorothy&quot;</span>, <span class="st">&quot;dog&quot;</span>, <span class="dv">11</span>, <span class="st">&quot;peanut butter&quot;</span>),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Four placeholders. Four values, in the same order.</p>
+<aside class="notes">Adjacent Python string literals join into one SQL string. Values can come from variables. Parameter binding handles an apostrophe in O&#x27;Malley without constructing SQL quotes. Placeholders represent values, not table names. The driver binds the values separately from SQL syntax. Source example with line breaks adjusted.</aside></section>
+<section><h2 id="committing-changes">Committing Changes</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet (name, kind, age, food) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?, ?, ?, ?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Whiskers&quot;</span>, <span class="st">&quot;hamster&quot;</span>, <span class="dv">1</span>, <span class="st">&quot;hamster chow&quot;</span>),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>Dorothy and Whiskers precede this commit.</p>
+<aside class="notes">With the script&#x27;s connection settings, both inserts belong to the pending transaction. Commit applies to that transaction, not only the last statement. The same connection can read its uncommitted changes. Visibility there does not prove another process will find the changes later. Other transaction settings behave differently; transaction detail belongs later in the course.</aside></section>
+<section><h2 id="fetching-one-row">Fetching One Row</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(<span class="st">&quot;SELECT * FROM pet&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>row <span class="op">=</span> cursor.fetchone()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>pprint(row)</span></code></pre></div>
+<pre class="text"><code>(1, &#39;Dorothy&#39;, &#39;dog&#39;, 11, &#39;peanut butter&#39;)</code></pre>
+<p>A stored record becomes a Python tuple.</p>
+<aside class="notes">Observed result from the tested script. Column order follows SELECT *. Row order is unspecified without ORDER BY. fetchone returns None after no rows remain. pprint displays the Python value; it does not query the database.</aside></section>
+<section><h2 id="fetching-the-remaining-rows">Fetching the Remaining Rows</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SELECT name FROM pet ORDER BY id&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>first <span class="op">=</span> cursor.fetchone()</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>rest <span class="op">=</span> cursor.fetchall()</span></code></pre></div>
+<pre class="text"><code>first: (&#39;Dorothy&#39;,)
+rest:  [(&#39;Whiskers&#39;,)]</code></pre>
+<aside class="notes">Small variation illustrating cursor consumption after the initial two inserts. fetchall retrieves remaining rows. The original script re-executes SELECT * before fetchall, so its list includes Dorothy again. Fetching is not the same as running the query again.</aside></section>
+<section><h2 id="the-one-element-tuple">The One-Element Tuple</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SELECT sql FROM sqlite_master &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;WHERE type=&#39;table&#39; AND name=?&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;pet&quot;</span>,),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>row <span class="op">=</span> cursor.fetchone()</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>pprint(row[<span class="dv">0</span>] <span class="cf">if</span> row <span class="cf">else</span> <span class="st">&quot;&quot;</span>)</span></code></pre></div>
+<p><code>("pet",)</code> is a tuple. <code>("pet")</code> is a
+string.</p>
+<aside class="notes">The comma creates the tuple. One placeholder needs one parameter value. A one-column result is also a tuple; row[0] extracts its string. The conditional handles None when the requested table is absent.</aside></section>
+<section><h2 id="an-error-does-not-fix-itself">An Error Does Not Fix Itself</h2>
+<pre class="text"><code>try with a wrong name
+Caught sqlite error: no such table: petz
+Caught sqlite error: no such table: petz</code></pre>
+<p>Catching the exception lets the program continue.</p>
+<p>Repeating the same misspelling fails again.</p>
+<aside class="notes">The source loops twice around an insert into petz, catching sqlite3.Error as e. It then uses the correct pet table, commits Sandy, and breaks after success. The first loop adds no records. break controls the Python loop. Exception handling and deciding what to roll back are separate responsibilities.</aside></section>
+<section><h2 id="deleting-stash">Deleting Stash</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;DELETE FROM pet WHERE name=?&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Stash&quot;</span>,),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>The condition can match more than one record.</p>
+<aside class="notes">Before this deletion, the script adds Maxwell and Stash and commits them. name is not unique in the schema. A missing name can produce zero matching rows without an exception. A completion message reports execution, not necessarily a changed record.</aside></section>
+<section><h2 id="updating-dorothy">Updating Dorothy</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;UPDATE pet SET age=?, food=? WHERE name=?&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">12</span>, <span class="st">&quot;pretzels&quot;</span>, <span class="st">&quot;Dorothy&quot;</span>),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p><code>SET</code> supplies changes. <code>WHERE</code> selects
+records.</p>
+<aside class="notes">Fully parameterized variation from the chapter. The source embeds age 12 and pretzels in SQL and binds only the name. Dorothy retains id 1 and kind dog. No matching rows need not raise an error. Reassigning a Python variable alone does not update this record.</aside></section>
+<section><h2 id="the-final-stored-state">The Final Stored State</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Dorothy</td>
+<td>dog</td>
+<td>12</td>
+<td>pretzels</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Whiskers</td>
+<td>hamster</td>
+<td>1</td>
+<td>hamster chow</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Sandy</td>
+<td>cat</td>
+<td>9</td>
+<td>tuna</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Maxwell</td>
+<td>cat</td>
+<td>11</td>
+<td>tuna</td>
+</tr>
+</tbody>
+</table>
+<p>A new process can retrieve these records.</p>
+<aside class="notes">Verified by running the actual script against a temporary database, then opening a separate connection. Stash deleted; petz attempts added nothing. Whiskers is 1 here, unlike 11 in the introductory terminal transcript. Shell verification: sqlite3 practice.db -header -column &quot;SELECT * FROM pet ORDER BY id;&quot;.</aside></section>
+<section><h2 id="finishing-with-the-connection">Finishing with the
+Connection</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">&quot;practice.db&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    cursor <span class="op">=</span> connection.execute(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;SELECT name FROM pet ORDER BY name&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    pprint(cursor.fetchall())</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="cf">finally</span>:</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    connection.close()</span></code></pre></div>
+<p>Closing is not a substitute for committing.</p>
+<aside class="notes">Additional cleanup pattern from the chapter, not present in the original script. Explicit close releases the connection when its work is finished. Python values and stored records have separate lifetimes. The next topic connects operations to web requests; database abstraction later collects the operations into functions.</aside></section></div></div>
+<script src="slide-assets/reveal.js"></script><script src="slide-assets/notes.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none',plugins:[RevealNotes]});</script>
+</body></html>

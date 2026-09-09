@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 1: Working with SQL in SQLite</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="working-with-sql-in-sqlite">Working with SQL in SQLite</h1>
+<p>Structured Query Language (SQL)</p>
+<p>Create records. Ask for them. Change what persists.</p>
+<aside class="notes">Direct database work before Python or web interfaces. SQLite is the database engine; sqlite3 is the command-line program. Source: chapter-01-intro-sql.md and ../../topic-01-intro-sql/example.txt. Transcript excerpts preserve the session; the SQL examples on these slides use cleaner line breaks for readability.</aside></section>
+<section><h2 id="a-fresh-practice-database">A Fresh Practice Database</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> sqlite_practice</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> sqlite_practice</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db</span></code></pre></div>
+<p>Which directory contains this database?</p>
+<aside class="notes">The repository&#x27;s pets.db already contains records. A fresh practice directory makes the creation sequence reproducible. Use another directory name for another fresh run. pwd reports the working directory. The relative name pets.db can refer to different files in different directories. Version banners may differ from the transcript.</aside></section>
+<section><h2 id="which-program-reads-the-command">Which Program Reads the
+Command?</h2>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Who reads it?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sqlite3 pets.db</code></td>
+<td>Operating-system shell</td>
+</tr>
+<tr>
+<td><code>.tables</code></td>
+<td>SQLite command-line shell</td>
+</tr>
+<tr>
+<td><code>SELECT * FROM pet;</code></td>
+<td>SQLite database engine</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>$</code> and <code>sqlite&gt;</code> prompts are not
+input.</p>
+<aside class="notes">Continuation prompts mean the statement is unfinished. Dot commands occupy their own lines without semicolons. SQL statements can span lines and end with semicolons in this session. The command is sqlite3, not sqlite. Shell reference: https://sqlite.org/cli.html.</aside></section>
+<section><h2 id="inspecting-the-database">Inspecting the Database</h2>
+<p>Transcript excerpt:</p>
+<pre class="text"><code>sqlite&gt; .schema
+sqlite&gt; .tables
+sqlite&gt; .headers on
+sqlite&gt; .mode column</code></pre>
+<p>Definitions, table names, and readable output</p>
+<aside class="notes">The initial database has no application tables. .schema shows definitions; .tables lists tables. The last two commands control result presentation. Display settings do not change the pet records. Source: ../../topic-01-intro-sql/example.txt.</aside></section>
+<section><h2 id="creating-the-pet-table">Creating the Pet Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pet (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> <span class="dt">INTEGER</span> <span class="kw">PRIMARY</span> <span class="kw">KEY</span> AUTOINCREMENT,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    name TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    kind TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    age <span class="dt">INTEGER</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    food TEXT</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>The table exists. There are no pets yet.</p>
+<aside class="notes">Named columns describe the records. NULL represents a missing value; name and kind cannot be NULL. NOT NULL does not reject an empty string. SQLite supplies omitted integer identifiers. INTEGER PRIMARY KEY already supports automatic identifiers. AUTOINCREMENT adds a nonreuse rule for identifiers from committed rows; SQLite maintains sqlite_sequence. .tables and .schema confirm the definition. Reference: https://sqlite.org/autoinc.html.</aside></section>
+<section><h2 id="inserting-dorothy">Inserting Dorothy</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> pet (name, kind, age, food)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="st">&#39;Dorothy&#39;</span>, <span class="st">&#39;dog&#39;</span>, <span class="dv">11</span>, <span class="st">&#39;peanut butter&#39;</span>);</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dorothy</td>
+<td>dog</td>
+<td>11</td>
+<td>peanut butter</td>
+</tr>
+</tbody>
+</table>
+<p>Where does <code>id</code> come from?</p>
+<aside class="notes">Column and value positions correspond. Text in single quotes; age is numeric. The insert omits id, so SQLite supplies 1 in the fresh practice database. The transcript first uses VALUE and gets a syntax error. VALUES is the keyword even for one row.</aside></section>
+<section><h2 id="reading-the-pets">Reading the Pets</h2>
+<p>After inserting Sandy and Whiskers:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pet;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Dorothy</td>
+<td>dog</td>
+<td>11</td>
+<td>peanut butter</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sandy</td>
+<td>cat</td>
+<td>11</td>
+<td>tuna</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Whiskers</td>
+<td>hamster</td>
+<td>11</td>
+<td>hamster chow</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Setup commands after Dorothy:
+INSERT INTO pet (name, kind, age, food) VALUES (&#x27;Sandy&#x27;, &#x27;cat&#x27;, 11, &#x27;tuna&#x27;);
+INSERT INTO pet (name, kind, age, food) VALUES (&#x27;Whiskers&#x27;, &#x27;hamster&#x27;, 11, &#x27;hamster chow&#x27;);
+The asterisk requests all columns. FROM names the table. SELECT reads the current records without changing them. Display order follows the transcript here; guaranteed ordering requires ORDER BY.</aside></section>
+<section><h2 id="choosing-columns-and-rows">Choosing Columns and Rows</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, food</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pet</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sandy</td>
+<td>tuna</td>
+</tr>
+</tbody>
+</table>
+<p>Which part chooses columns? Which part chooses rows?</p>
+<aside class="notes">SELECT names the returned columns. WHERE supplies the row condition. The transcript&#x27;s failed SELECT FROM pet WHERE kind = &#x27;cat&#x27; omits the selection list. SELECT * fixes it. SQLite accepts == too; use = in these examples. Exact equality against &#x27;Do&#x27; does not match &#x27;Dorothy&#x27;. No matches is a valid empty result.</aside></section>
+<section><h2 id="deleting-the-cats">Deleting the Cats</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pet <span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DELETE</span> <span class="kw">FROM</span> pet <span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span></code></pre></div>
+<p>Remaining identifiers: <strong>1 and 3</strong></p>
+<p>What would happen without <code>WHERE</code>?</p>
+<aside class="notes">Inspect the matching rows before deleting. DELETE applies to every cat; Sandy is the only cat in this data. Without WHERE, DELETE removes all rows. Identifiers do not get renumbered. SELECT kind, food FROM pet WHERE age = 11 still returns Dorothy and Whiskers, since both have age 11.</aside></section>
+<section><h2 id="a-query-from-the-shell">A Query from the Shell</h2>
+<p>Leave SQLite with <code>.quit</code>, then run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db <span class="at">-header</span> <span class="at">-column</span> <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;SELECT * FROM pet WHERE name = &#39;Whiskers&#39;;&quot;</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>Whiskers</td>
+<td>hamster</td>
+<td>11</td>
+<td>hamster chow</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Double quotes keep the SQL together as a shell argument. Single quotes delimit the SQL string. The backslash continues the shell command onto the next line. -header -column requests readable output for this invocation. The process that created the records has exited, but this new process can still retrieve them.</aside></section>
+<section><h2 id="several-lines-of-shell-input">Several Lines of Shell Input</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db <span class="op">&lt;&lt;&#39;SQL&#39;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="st">SELECT *</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="st">FROM pet;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="op">SQL</span></span></code></pre></div>
+<p>The closing <code>SQL</code> marks the end of the input.</p>
+<aside class="notes">A shell here-document feeds several lines to sqlite3. SQL is the chosen delimiter, not an SQL keyword in that position. Quoting the opening delimiter suppresses shell variable expansion and command substitution. Closing delimiter alone on its line, without quotes. The transcript uses this technique after first trying the wrong executable name.</aside></section>
+<section><h2 id="restoring-sandy-for-the-sorting-examples">Restoring Sandy for
+the Sorting Examples</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> pet (<span class="kw">id</span>, name, kind, age, food)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="dv">2</span>, <span class="st">&#39;Sandy&#39;</span>, <span class="st">&#39;cat&#39;</span>, <span class="dv">11</span>, <span class="st">&#39;tuna&#39;</span>);</span></code></pre></div>
+<p>The transcript skips this step.</p>
+<aside class="notes">Sandy appears in the later sorting output although the transcript previously deleted her. The chapter adds this restoration to make the sequence reproducible. Explicit id 2 restores the original row. Run this once after the deletion. This command is an added step, not a quotation from the transcript.</aside></section>
+<section><h2 id="sorting-the-result">Sorting the Result</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, kind <span class="kw">FROM</span> pet <span class="kw">ORDER</span> <span class="kw">BY</span> kind;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sandy</td>
+<td>cat</td>
+</tr>
+<tr>
+<td>Dorothy</td>
+<td>dog</td>
+</tr>
+<tr>
+<td>Whiskers</td>
+<td>hamster</td>
+</tr>
+</tbody>
+</table>
+<p>What order would <code>ORDER BY food</code> produce?</p>
+<aside class="notes">ORDER BY kind gives cat, dog, hamster. ORDER BY food gives hamster chow, peanut butter, tuna: Whiskers, Dorothy, Sandy. Sorting controls the returned result without changing record identifiers. Without ORDER BY, the observed order is not a guarantee.</aside></section></div></div>
+<script src="slide-assets/reveal.js"></script><script src="slide-assets/notes.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none',plugins:[RevealNotes]});</script>
+</body></html>

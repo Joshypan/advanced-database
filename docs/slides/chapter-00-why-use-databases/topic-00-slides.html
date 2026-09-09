@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 0: Why Use Databases?</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="why-use-databases">Why Use Databases?</h1>
+<p>Modern applications and the state they need to remember</p>
+<aside class="notes">Shopping cart after closing the browser. Reservation after a server restart. A pet&#x27;s new owner when someone opens the record later. Course direction: persistent application objects, then the division of work between application and database.</aside></section>
+<section><h2 id="working-with-external-data">Working with External Data</h2>
+<p>A sales export is input to an analysis.</p>
+<p><img src="slide-assets/diagram-02.svg"
+alt="Working with External Data" /></p>
+<p>Each run ends with the report.</p>
+<aside class="notes">Spreadsheet, file, or table supplied to a program. Sales export becomes totals and a printed report. Next week&#x27;s report can use a new export without preserving the program&#x27;s internal working state. This is the external-data model students may already know.</aside></section>
+<section><h2 id="persisting-application-state">Persisting Application State</h2>
+<p>Objects in memory disappear when the program ends.</p>
+<p><strong>The order still needs to exist tomorrow.</strong></p>
+<aside class="notes">Interactive applications create and change the things they work with. Pets have owners; orders contain items and change status. Persistence keeps relevant state beyond the running process so the application can recover it. Data becomes the persistent representation of internal application objects.</aside></section>
+<section><h2 id="what-needs-to-survive">What Needs to Survive?</h2>
+<table>
+<thead>
+<tr>
+<th>Keep after a restart</th>
+<th>Usually temporary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>An order’s contents</td>
+<td>A value used to draw a button</td>
+</tr>
+<tr>
+<td>A pet’s owner</td>
+<td>An intermediate calculation</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Persistence does not mean saving everything in memory. Recover enough state to continue the application&#x27;s work. Order contents and pet ownership need to survive; an intermediate calculation may be temporary. Choice depends on what the application needs later.</aside></section>
+<section><h2 id="persistence-cycle">Persistence Cycle</h2>
+<p><img src="slide-assets/diagram-05.svg" alt="Persistence Cycle" /></p>
+<p><strong>Display State</strong> can happen anywhere in this cycle.</p>
+<p>A read-only action may load and display without saving.</p>
+<aside class="notes">Conceptual cycle, not a mandatory sequence for every request. Determine the requested action, load relevant state, act, save changes. Display can precede an action, show changes during it, or show the saved result. Read-only requests may omit saving.</aside></section>
+<section><h2 id="why-not-just-a-file">Why Not Just a File?</h2>
+<p>A file may be enough for a small program.</p>
+<ul>
+<li>Several people change the same information.</li>
+<li>A change fails partway through.</li>
+<li>Finding the needed records gets harder as data grows.</li>
+</ul>
+<aside class="notes">A database supplies tools for shared state, failure handling, and finding records. The application still needs a defined outcome for its operations. Mechanisms come in later chapters.</aside></section>
+<section><h2 id="pets-and-owners">Pets and Owners</h2>
+<p>How does the application remember who owns a pet?</p>
+<p>What happens when an owner is removed?</p>
+<p>How does a web-page change become persistent?</p>
+<aside class="notes">Recurring application through the course. Familiar domain with real relationships and changes. The same example lets us compare data access approaches without relearning the application each time.</aside></section>
+<section><h2 id="letting-the-database-do-more">Letting the Database Do More</h2>
+<p>The page needs the number of dogs.</p>
+<table>
+<thead>
+<tr>
+<th>Application counts</th>
+<th>Database counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retrieve every pet</td>
+<td>Request the count</td>
+</tr>
+<tr>
+<td>Count dogs in the application</td>
+<td>Receive the result</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">The page needs the answer, not necessarily all the records behind it. Database work goes beyond storage. Where an operation belongs depends on the application&#x27;s needs. Optimization details come later.</aside></section>
+<section><h2 id="course-outline-sql-and-the-application">Course Outline: SQL and
+the Application</h2>
+<p>Structured Query Language (SQL)</p>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Intro SQL</td>
+</tr>
+<tr>
+<td>2</td>
+<td>SQL in Python</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Intro to Web Apps</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Database Abstraction</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Database Constraints</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">SQLite first. Python connects program behavior to the database. Flask connects user actions to persistent changes. Data access functions in database.py separate those operations from the interface. Constraints add rules for valid stored state.</aside></section>
+<section><h2 id="course-outline-data-access-and-optimization">Course Outline:
+Data Access and Optimization</h2>
+<p>Object-relational mapper (ORM)</p>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6</td>
+<td>Object-Relational Mappers (ORMs)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>ORM with Constraints</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Dataset Library</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Optimization</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Different libraries connect application objects to stored records. Familiar pets-and-owners example throughout. Optimization includes larger datasets, queries and indexes, and a brief look at SQL stored procedures.</aside></section>
+<section><h2 id="course-outline-document-databases">Course Outline: Document
+Databases</h2>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>Intro to Mongo</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Mongo App</td>
+</tr>
+<tr>
+<td>12</td>
+<td>MongoDB Atlas</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Mongo Indexes</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Installing MongoDB Locally</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Geospatial Queries</td>
+</tr>
+</tbody>
+</table>
+<aside class="notes">Mongita introduces document operations locally. MongoDB Atlas and a local MongoDB server extend the application to different deployment settings. Geographic data and location questions finish the sequence. A topic can span more than one class meeting.</aside></section>
+<section><h2 id="an-application-you-use">An Application You Use</h2>
+<p>What should it remember after you close it?</p>
+<p>What can it forget?</p>
+<p>What work could its database do?</p>
+<aside class="notes">Return to persistent application state and the division of work. Shopping cart, reservation, or another familiar application. Identify what must survive before choosing how to store it. The sales report remains a useful comparison: external input to a run versus state carried between interactions.</aside></section></div></div>
+<script src="slide-assets/reveal.js"></script><script src="slide-assets/notes.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none',plugins:[RevealNotes]});</script>
+</body></html>

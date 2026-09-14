@@ -76,7 +76,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> render_template(<span class="st">&quot;pets.html&quot;</span>, pets<span class="op">=</span>rows)</span></code></pre></div>
 <pre class="text"><code>(id, name, kind, age, food)</code></pre>
 <p>Each returned tuple becomes one displayed row.</p>
-<aside class="notes">Body excerpt from get_pets, omitting pprint debugging output. rows is a list of tuples. Schema order supplies the tuple positions because SELECT * uses all columns. pprint goes to server terminal, not browser. Query has no ORDER BY, so no promised display order. pets.db contains persistent records; rows contains values loaded for this response. The unused list.html belongs to the commented list demonstration.</aside></section>
+<aside class="notes">Body excerpt from get_pets, omitting pprint debugging output. rows is a list of tuples. Schema order supplies the tuple positions because SELECT * uses all columns. pprint goes to server terminal, not browser. pets.db contains persistent records; rows contains values loaded for this response. The unused list.html belongs to the commented list demonstration.</aside></section>
 <section><h2 id="a-template-builds-the-table">A Template Builds the Table</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{% for pet in pets %}</span>
@@ -125,7 +125,7 @@ class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="
 <div class="sourceCode" id="cb2"><pre
 class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> <span class="bu">dict</span>(request.form)</span></code></pre></div>
 <p><code>data["age"]</code> arrives as a string.</p>
-<aside class="notes">Shortened form shows only name and age. Full create.html also supplies kind and food, plus labels and a Cancel link. action sets destination. method sets request method. Input name supplies the key, not the nearby visible label. Browser sends age as text. Cancel follows /pets without submitting. Creation binds submitted age directly; update tries int conversion. Neither approach is complete input validation.</aside></section>
+<aside class="notes">Shortened form shows only name and age. Full create.html also supplies kind and food, plus labels and a Cancel link. action sets destination. method sets request method. Input name supplies the key, not the nearby visible label. Browser sends age as text. Cancel follows /pets without submitting. Creation binds submitted age directly; update tries int conversion.</aside></section>
 <section><h2 id="saving-the-new-pet">Saving the New Pet</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
@@ -136,7 +136,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
 <p>SQLite supplies the identifier.</p>
-<aside class="notes">Equivalent excerpt from post_create. Adjacent string literals join in Python. Parameters keep supplied values separate from SQL syntax. O&#x27;Malley works without manually quoting an SQL string. Omitted cursor assignment and unused fetchall: INSERT without RETURNING yields no rows to fetch. execute performs the insertion; fetching does not execute it. Commit completes the transaction. Route next returns redirect(url_for(&quot;get_pets&quot;)).</aside></section>
+<aside class="notes">Equivalent excerpt from post_create. Adjacent string literals join in Python. Parameters keep supplied values separate from SQL syntax. O&#x27;Malley works without manually quoting an SQL string. INSERT without RETURNING yields no rows to fetch. execute performs the insertion. Commit completes the transaction. Route next returns redirect(url_for(&quot;get_pets&quot;)).</aside></section>
 <section><h2 id="after-the-save">After the Save</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
@@ -171,7 +171,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a hr
 class="sourceCode html"><code class="sourceCode html"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">form</span><span class="ot"> action</span><span class="op">=</span><span class="st">&quot;/update/{{data[&#39;id&#39;]}}&quot;</span><span class="ot"> method</span><span class="op">=</span><span class="st">&quot;post&quot;</span><span class="dt">&gt;</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;name&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;name&#39;]}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
 <p>The loaded value becomes the form’s starting value.</p>
-<aside class="notes">Query excerpt drops unnecessary f-string prefix. Route converts id to int, fetches row, unpacks id/name/kind/age/food, builds data dictionary, then renders update.html. Form excerpt only shows name. Identifier 3 is illustrative and needs an existing row for a live example. Form action becomes /update/3. Editing a browser field does not mutate that earlier Python dictionary or stored record. Missing row produces error template; nonnumeric id fails before existing try block.</aside></section>
+<aside class="notes">Route converts id to int, fetches row, unpacks id/name/kind/age/food, builds data dictionary, then renders update.html. Form excerpt only shows name. Identifier 3 is illustrative and needs an existing row for a live example. Form action becomes /update/3. Editing a browser field does not mutate that earlier Python dictionary or stored record. Missing row produces the error template.</aside></section>
 <section><h2 id="the-persistence-cycle-in-an-edit">The Persistence Cycle in an
 Edit</h2>
 <table>
@@ -202,37 +202,21 @@ Edit</h2>
 </table>
 <p><strong>Display State</strong> can happen anywhere in the cycle.</p>
 <aside class="notes">Edit form displays loaded state. Browser displays typed changes before saving. Redirect displays saved state through a fresh list query. POST handler obtains submitted values and runs UPDATE with four new values and id as parameters. HTTP does not keep one Python function call alive across these requests. The identifier connects the submitted form to its stored record. Restarting the server preserves committed database state, but recreates the in-memory connection and later result objects.</aside></section>
-<section><h2 id="deletion-and-invalid-input">Deletion and Invalid Input</h2>
-<table>
-<thead>
-<tr>
-<th>Current example</th>
-<th>Better behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET /delete/3</code> deletes</td>
-<td>Submit a <code>POST</code> to delete</td>
-</tr>
-<tr>
-<td>Invalid age becomes <code>0</code></td>
-<td>Reject it and explain the error</td>
-</tr>
-<tr>
-<td>Missing record shows a page</td>
-<td>Return a suitable error status too</td>
-</tr>
-</tbody>
-</table>
-<aside class="notes">GET should not change stored state. The teaching app uses a deletion link for convenience. A finished version also needs protection against cross-site request forgery, where another site induces an unwanted request. Error template defaults to status 200; missing record normally warrants 404. Existing broad except hides distinctions. Extra @app.route(&quot;/update&quot;) on both update functions registers GET, including on post_update. POST /update is not registered; saving uses POST /update/&lt;id&gt;. Decorators control routing, not function names. Chapter exercises explore corrections.</aside></section>
+<section><h2 id="deleting-a-pet">Deleting a Pet</h2>
+<pre class="text"><code>GET /delete/3</code></pre>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>connection.execute(<span class="st">&quot;DELETE FROM pet WHERE id = ?&quot;</span>, (<span class="bu">id</span>,))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>connection.commit()</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<p>The refreshed list shows the remaining pets.</p>
+<aside class="notes">Equivalent excerpt from get_delete, with unused cursor assignment omitted and SQLite&#x27;s == written as =. The link supplies the record identifier, converted to int before the query. Delete the selected row, commit, redirect, reload the list. error.html displays a supplied message and a link back to /pets when an edit request has no identifier or no matching record.</aside></section>
 <section><h2 id="tracing-an-application-operation">Tracing an Application
 Operation</h2>
 <p><strong>Request:</strong> Which path and method?</p>
 <p><strong>Route:</strong> Which values and database operation?</p>
 <p><strong>Response:</strong> A page, a redirect, or an error?</p>
 <p>The database preserves state between requests.</p>
-<aside class="notes">Trace a single pet creation or edit end to end when debugging. Browser fields, Python dictionaries, database rows are separate representations. Changes require explicit saving. Global connection with check_same_thread=False disables a thread guard, without making concurrent use safe. Request-scoped connection management is a next refinement: https://flask.palletsprojects.com/en/stable/tutorial/database/. Database abstraction will collect repeated operations behind functions. Closing advice: trace the request and verify the saved record before changing more code.</aside></section></div></div>
+<aside class="notes">Trace a single pet creation or edit end to end when debugging. Browser fields, Python dictionaries, database rows are separate representations. Changes require explicit saving. Database abstraction will collect repeated operations behind functions. Closing advice: trace the request and verify the saved record before changing more code.</aside></section></div></div>
 <script src="slide-assets/reveal.js"></script><script src="slide-assets/notes.js"></script>
 <script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none',plugins:[RevealNotes]});</script>
 </body></html>

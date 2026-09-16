@@ -1,2 +1,3 @@
-# advanced-database
-Repository for Advanced Database Fall 2026
+# Advanced Database System Design
+
+Student materials: https://kentcs.github.io/advanced-database/

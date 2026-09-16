@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 4: Database Abstraction</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="database-abstraction">Database Abstraction</h1>
+<p>The routes ask for an operation. The database module carries it
+out.</p>
+</section>
+<section><h2 id="why-an-abstraction-layer">Why an Abstraction Layer?</h2>
+<p>A named operation hides the details of carrying it out.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pet <span class="op">=</span> database.get_pet(<span class="bu">id</span>)</span></code></pre></div>
+<p>The route asks for a pet. The module handles the query.</p>
+<p>Query details can change while the calling code stays the same.</p>
+</section>
+<section><h2 id="single-responsibility-principle">Single Responsibility
+Principle</h2>
+<p>Single Responsibility Principle (SRP): one reason to change.</p>
+<table>
+<thead>
+<tr>
+<th>What changes?</th>
+<th>Where it belongs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Request handling or page selection</td>
+<td><code>app.py</code></td>
+</tr>
+<tr>
+<td>How pets are stored or retrieved</td>
+<td><code>database.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>Keep code that changes for the same reason together.</p>
+</section>
+<section><h2 id="running-the-application">Running the Application</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
+<pre class="text"><code>http://127.0.0.1:5000/list</code></pre>
+<p>Separate database setup: <code>python3 setup_database.py</code></p>
+</section>
+<section><h2 id="two-modules-different-work">Two Modules, Different Work</h2>
+<table>
+<thead>
+<tr>
+<th><code>app.py</code></th>
+<th><code>database.py</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Read the request</td>
+<td>Open the database</td>
+</tr>
+<tr>
+<td>Call an operation</td>
+<td>Execute SQL</td>
+</tr>
+<tr>
+<td>Render a template</td>
+<td>Return records</td>
+</tr>
+<tr>
+<td>Choose a redirect</td>
+<td>Commit writes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="the-database-interface">The Database Interface</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_pets()</code></td>
+<td>List of dictionaries</td>
+</tr>
+<tr>
+<td><code>get_pet(id)</code></td>
+<td>Dictionary or <code>None</code></td>
+</tr>
+<tr>
+<td><code>create_pet(data)</code></td>
+<td>Saved new record</td>
+</tr>
+<tr>
+<td><code>update_pet(id, data)</code></td>
+<td>Saved changes</td>
+</tr>
+<tr>
+<td><code>delete_pet(id)</code></td>
+<td>Removed record</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="preparing-the-table">Preparing the Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>app <span class="op">=</span> Flask(<span class="va">__name__</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>database.setup_database(<span class="st">&quot;pets.db&quot;</span>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Pet fields</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identity</td>
+<td><code>id</code>, <code>name</code></td>
+</tr>
+<tr>
+<td>Description</td>
+<td><code>type</code>, <code>age</code></td>
+</tr>
+<tr>
+<td>Care</td>
+<td><code>food</code>, <code>owner</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="named-records">Named Records</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.row_factory <span class="op">=</span> sqlite3.Row</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>pets <span class="op">=</span> cursor.fetchall()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>pets <span class="op">=</span> [<span class="bu">dict</span>(pet) <span class="cf">for</span> pet <span class="kw">in</span> pets]</span></code></pre></div>
+<p><code>pet['food']</code> and <code>pet['owner']</code> identify
+fields directly.</p>
+</section>
+<section><h2 id="listing-pets">Listing Pets</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/pets&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/list&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_pets():</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> render_template(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;list.html&quot;</span>, pets<span class="op">=</span>database.get_pets()</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div>
+<p>The template chooses the displayed field order.</p>
+</section>
+<section><h2 id="creating-a-pet">Creating a Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/create&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;POST&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> post_create():</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    database.create_pet(<span class="bu">dict</span>(request.form))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<p>The database function commits before returning.</p>
+</section>
+<section><h2 id="inside-create_pet">Inside <code>create_pet</code></h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet(name, age, type, food, owner) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?,?,?,?,?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (data[<span class="st">&quot;name&quot;</span>], data[<span class="st">&quot;age&quot;</span>], data[<span class="st">&quot;type&quot;</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>     data[<span class="st">&quot;food&quot;</span>], data[<span class="st">&quot;owner&quot;</span>]),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>The column list determines the parameter order.</p>
+</section>
+<section><h2 id="loading-one-pet">Loading One Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor.execute(<span class="st">&quot;SELECT * FROM pet WHERE id = ?&quot;</span>, (<span class="bu">id</span>,))</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pet <span class="op">=</span> cursor.fetchone()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> pet <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">None</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="bu">dict</span>(pet)</span></code></pre></div>
+<p>A dictionary means found. <code>None</code> means absent.</p>
+</section>
+<section><h2 id="filling-the-edit-form">Filling the Edit Form</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> database.get_pet(<span class="bu">id</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;food&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;food&#39;] or &#39;&#39;}}&quot;</span><span class="dt">/&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;owner&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;owner&#39;]}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
+<p>The form submits to <code>/update/{{data['id']}}</code>.</p>
+</section>
+<section><h2 id="saving-the-edit">Saving the Edit</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>database.update_pet(<span class="bu">id</span>, <span class="bu">dict</span>(request.form))</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> pet <span class="kw">SET</span> name<span class="op">=</span>?, age<span class="op">=</span>?, <span class="kw">type</span><span class="op">=</span>?, food<span class="op">=</span>?, owner<span class="op">=</span>?</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> <span class="kw">id</span><span class="op">=</span>?</span></code></pre></div>
+<p>Five replacement values, followed by the identifier.</p>
+</section>
+<section><h2 id="deleting-a-pet">Deleting a Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/delete/&lt;int:id&gt;&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_delete(<span class="bu">id</span>):</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    database.delete_pet(<span class="bu">id</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<p>The database function deletes and commits.</p>
+</section>
+<section><h2 id="testing-the-same-functions">Testing the Same Functions</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> database.py</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>delete_pet(pet[<span class="st">&quot;id&quot;</span>])</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> get_pet(pet[<span class="st">&quot;id&quot;</span>]) <span class="kw">is</span> <span class="va">None</span></span></code></pre></div>
+<p>The tests use <code>test_pets.db</code>.</p>
+</section>
+<section><h2 id="following-the-call">Following the Call</h2>
+<p><strong>Route:</strong> What operation does this request ask for?</p>
+<p><strong>Database function:</strong> Which values and statement carry
+it out?</p>
+<p><strong>Response:</strong> How does the browser show the result?</p>
+<p>Use the function boundary to follow one operation at a time.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

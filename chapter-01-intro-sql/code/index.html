@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Working with SQL in SQLite</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) {
+ main { padding: 12px; } h1 { font-size: 21px; }
+ .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; }
+ nav { border-right: 0; border-bottom: 1px solid #ccd6dc; }
+}
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Working with SQL in SQLite: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6578616d706c652e747874">example.txt</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6578616d706c652e747874" aria-labelledby="title-file-6578616d706c652e747874"><header class="file-header"><h2 id="title-file-6578616d706c652e747874">example.txt</h2></header><pre><code>$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db
+SQLite version 3.45.3 2024-04-15 13:34:05
+Enter ".help" for usage hints.
+sqlite&gt; .schema
+sqlite&gt; .tables
+sqlite&gt; .headers on 
+sqlite&gt; .mode column
+sqlite&gt; create table pet
+   ...&gt; (
+(x1...&gt; id integer primary key autoincrement, 
+(x1...&gt; name text not null,
+(x1...&gt; kind text not null, 
+(x1...&gt; age integer,
+(x1...&gt; food text
+(x1...&gt; );
+sqlite&gt; .tables
+pet
+sqlite&gt; .schema
+CREATE TABLE pet
+(
+id integer primary key autoincrement, 
+name text not null,
+kind text not null, 
+age integer,
+food text
+);
+CREATE TABLE sqlite_sequence(name,seq);
+sqlite&gt; insert into pet (name, kind, age, food) value 
+('Dorothy','dog',11,'peanut butter'
+(x1...&gt; );
+Parse error: near "value": syntax error
+  insert into pet (name, kind, age, food) value ('Dorothy','dog',11,'peanut butt
+                            error here ---^
+sqlite&gt; insert into pet (name, kind, age, food) values ('Dorothy','dog',11,'peanut butter');
+sqlite&gt; select * from pet;
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+sqlite&gt; insert into pet (name, kind, age, food) values ('Sandy','cat',11,'tuna'
+);
+sqlite&gt; insert into pet (name, kind, age, food) values ('Whiskers','hamster',11
+,'hamster chow');
+sqlite&gt; select * from pet;
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+3   Whiskers  hamster  11   hamster chow 
+sqlite&gt; select from pet where kind = 'cat';
+Parse error: near "from": syntax error
+  select from pet where kind = 'cat';
+         ^--- error here
+sqlite&gt; select * from pet where kind = 'cat';
+id  name   kind  age  food
+--  -----  ----  ---  ----
+2   Sandy  cat   11   tuna
+sqlite&gt; delete from pet where kind = 'cat';
+sqlite&gt; select kind,food from pet;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+sqlite&gt; select kind,food from pet where age = 11;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+
+$ echo "hello"
+hello
+$ echo &lt;&lt;'SONG'
+&gt; Happy birthday to you,
+&gt; HBTY
+&gt; HBT Dorothy
+&gt; HBTY
+&gt; SONG
+
+$ echo &lt;&lt;'SONG'
+Happy birthday to you,
+HBTY
+HBT Dorothy
+HBTY
+'SONG'
+&gt; SONG
+
+$ cd *01*
+bash: cd: *01*: No such file or directory
+$ ls
+pets.db
+$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db ".tables"
+pet
+$ cat &lt;&lt;'SONG' "hello"
+&gt; ^C
+$ cat &lt;&lt;'SONG'
+&gt; hi
+&gt; hello
+&gt; how are you
+&gt; SONG
+hi
+hello
+how are you
+$ sqlite pets.db &lt;&lt;'SQL'
+&gt; select * 
+&gt; from pet
+&gt; ;
+&gt; SQL
+bash: sqlite: command not found
+$ sqlite3 pets.db &lt;&lt;'SQL'
+select * 
+from pet
+;
+SQL
+$ 
+$ sqlite3 pets.db -header -column "select * from pet;"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Dorothy';"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Do';"
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet where name = 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet order by kind;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+2   Sandy     cat      11   tuna         
+1   Dorothy   dog      11   peanut butter
+3   Whiskers  hamster  11   hamster chow 
+$ sqlite3 pets.db -header -column "select * from pet order by food;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+3   Whiskers  hamster  11   hamster chow 
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+$ 
+</code></pre></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-01-intro-sql/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) {
+  if (link === selected) link.setAttribute('aria-current', 'true');
+  else link.removeAttribute('aria-current');
+ }
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

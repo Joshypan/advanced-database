@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 3: Introduction to Web Applications</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="introduction-to-web-applications">Introduction to Web
+Applications</h1>
+<p>A browser interface for the pet database</p>
+</section>
+<section><h2 id="the-pet-application">The Pet Application</h2>
+<ul>
+<li>Requests select Python functions.</li>
+<li>Templates produce browser pages.</li>
+<li>Forms supply values for database operations.</li>
+<li>Saved records survive the server stopping.</li>
+</ul>
+</section>
+<section><h2 id="running-flask">Running Flask</h2>
+<p>From a working copy of
+<code>chapter-03-intro-to-web-apps/code</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
+<pre class="text"><code>http://127.0.0.1:5000/pets</code></pre>
+<p>The supplied <code>pets.db</code> holds the existing records.</p>
+</section>
+<section><h2 id="reading-a-url">Reading a URL</h2>
+<p>Uniform Resource Locator (URL)</p>
+<pre class="text"><code>http://127.0.0.1:5000/pets</code></pre>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http</code></td>
+<td>Protocol scheme</td>
+</tr>
+<tr>
+<td><code>127.0.0.1</code></td>
+<td>This computer’s loopback address</td>
+</tr>
+<tr>
+<td><code>5000</code></td>
+<td>Port</td>
+</tr>
+<tr>
+<td><code>/pets</code></td>
+<td>Requested path</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="a-request-calls-a-function">A Request Calls a Function</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/bye&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_bye():</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">&quot;Bye!&quot;</span></span></code></pre></div>
+<p><code>GET /bye</code> receives <code>Bye!</code></p>
+</section>
+<section><h2 id="a-value-in-the-path">A Value in the Path</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.route</span>(<span class="st">&quot;/hello/&lt;name&gt;&quot;</span>, methods<span class="op">=</span>[<span class="st">&quot;GET&quot;</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_hello(name<span class="op">=</span><span class="st">&quot;world&quot;</span>):</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> render_template(<span class="st">&quot;hello.html&quot;</span>, name<span class="op">=</span>name)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">body</span><span class="dt">&gt;</span>Hello, {{ name }}! (from the template)<span class="dt">&lt;/</span><span class="kw">body</span><span class="dt">&gt;</span></span></code></pre></div>
+<p><code>/hello/Ada</code> displays <strong>Hello, Ada! (from the
+template)</strong></p>
+</section>
+<section><h2 id="loading-the-pet-list">Loading the Pet List</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> connection.execute(<span class="st">&quot;select * from pet&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> cursor.fetchall()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> render_template(<span class="st">&quot;pets.html&quot;</span>, pets<span class="op">=</span>rows)</span></code></pre></div>
+<pre class="text"><code>(id, name, kind, age, food)</code></pre>
+<p>Each returned tuple becomes one displayed row.</p>
+</section>
+<section><h2 id="a-template-builds-the-table">A Template Builds the Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{% for pet in pets %}</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tr</span><span class="dt">&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {% for item in pet %}</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">td</span><span class="dt">&gt;</span>{{ item }}<span class="dt">&lt;/</span><span class="kw">td</span><span class="dt">&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {% endfor %}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tr</span><span class="dt">&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>{% endfor %}</span></code></pre></div>
+<p><code>{% ... %}</code> controls the loop. <code>{{ ... }}</code>
+inserts a value.</p>
+</section>
+<section><h2 id="opening-and-submitting-a-form">Opening and Submitting a
+Form</h2>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Function</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /create</code></td>
+<td><code>get_create</code></td>
+<td>Blank form</td>
+</tr>
+<tr>
+<td><code>POST /create</code></td>
+<td><code>post_create</code></td>
+<td>Saved pet, then redirect</td>
+</tr>
+</tbody>
+</table>
+<p>Same path. Different methods and work.</p>
+</section>
+<section><h2 id="named-inputs-become-form-values">Named Inputs Become Form
+Values</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">form</span><span class="ot"> action</span><span class="op">=</span><span class="st">&quot;/create&quot;</span><span class="ot"> method</span><span class="op">=</span><span class="st">&quot;post&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;name&quot;</span><span class="dt">/&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;age&quot;</span><span class="dt">/&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">button</span><span class="ot"> type</span><span class="op">=</span><span class="st">&quot;submit&quot;</span><span class="dt">&gt;</span>Create<span class="dt">&lt;/</span><span class="kw">button</span><span class="dt">&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">form</span><span class="dt">&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> <span class="bu">dict</span>(request.form)</span></code></pre></div>
+<p><code>data["age"]</code> arrives as a string.</p>
+</section>
+<section><h2 id="saving-the-new-pet">Saving the New Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet(name, kind, age, food) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?, ?, ?, ?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (data[<span class="st">&quot;name&quot;</span>], data[<span class="st">&quot;kind&quot;</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>     data[<span class="st">&quot;age&quot;</span>], data[<span class="st">&quot;food&quot;</span>])</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>SQLite supplies the identifier.</p>
+</section>
+<section><h2 id="after-the-save">After the Save</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /create</code></td>
+<td>Insert and commit</td>
+</tr>
+<tr>
+<td><code>302</code> response</td>
+<td>Redirect browser to <code>/pets</code></td>
+</tr>
+<tr>
+<td><code>GET /pets</code></td>
+<td>Query and display saved records</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="editing-pet-3">Editing Pet 3</h2>
+<pre class="text"><code>GET /update/3</code></pre>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cursor.execute(<span class="st">&quot;SELECT * FROM pet WHERE id = ?&quot;</span>, (<span class="bu">id</span>,))</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">form</span><span class="ot"> action</span><span class="op">=</span><span class="st">&quot;/update/{{data[&#39;id&#39;]}}&quot;</span><span class="ot"> method</span><span class="op">=</span><span class="st">&quot;post&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;name&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;name&#39;]}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
+<p>The loaded value becomes the form’s starting value.</p>
+</section>
+<section><h2 id="the-persistence-cycle-in-an-edit">The Persistence Cycle in an
+Edit</h2>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Pet application</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Determining Action</td>
+<td>Choose Edit for pet 3</td>
+</tr>
+<tr>
+<td>Loading State</td>
+<td><code>GET /update/3</code> reads the record</td>
+</tr>
+<tr>
+<td>Taking Action</td>
+<td>Change fields in the browser</td>
+</tr>
+<tr>
+<td>Saving State</td>
+<td><code>POST /update/3</code> updates and commits</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Display State</strong> can happen anywhere in the cycle.</p>
+</section>
+<section><h2 id="deleting-a-pet">Deleting a Pet</h2>
+<pre class="text"><code>GET /delete/3</code></pre>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>connection.execute(<span class="st">&quot;DELETE FROM pet WHERE id = ?&quot;</span>, (<span class="bu">id</span>,))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>connection.commit()</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
+<p>The refreshed list shows the remaining pets.</p>
+</section>
+<section><h2 id="tracing-an-application-operation">Tracing an Application
+Operation</h2>
+<p><strong>Request:</strong> Which path and method?</p>
+<p><strong>Route:</strong> Which values and database operation?</p>
+<p><strong>Response:</strong> A page, a redirect, or an error?</p>
+<p>The database preserves state between requests.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

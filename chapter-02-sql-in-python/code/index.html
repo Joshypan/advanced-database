@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: SQL in Python</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) {
+ main { padding: 12px; } h1 { font-size: 21px; }
+ .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; }
+ nav { border-right: 0; border-bottom: 1px solid #ccd6dc; }
+}
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>SQL in Python: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-64622d6578616d706c652e7079">db-example.py</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-64622d6578616d706c652e7079" aria-labelledby="title-file-64622d6578616d706c652e7079"><header class="file-header"><h2 id="title-file-64622d6578616d706c652e7079">db-example.py</h2></header><pre><code>import argparse
+import sqlite3
+from pprint import pprint
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--db", default="pets.db")
+args = ap.parse_args()
+
+connection = sqlite3.connect(args.db)
+
+print("succeeded in making connection.")
+
+connection.execute("drop table if exists pet")
+connection.commit()
+
+# list all the tables in the database
+cursor = connection.execute(
+    """
+    select name from sqlite_master
+    where type = 'table'
+    order by name
+    """
+)
+list_of_tables = [item[0] for item in cursor.fetchall()]
+print("the tables:")
+pprint(list_of_tables)
+
+connection.execute("""
+            create table pet
+            (
+                id integer primary key autoincrement,
+                name text not null,
+                kind text not null,
+                age integer,
+                food text
+            );
+            """)
+connection.commit()
+
+# list all the tables in the database
+cursor = connection.execute(
+    """
+    select name from sqlite_master
+    where type = 'table'
+    order by name
+    """
+)
+list_of_tables = [item[0] for item in cursor.fetchall()]
+print("the tables:")
+pprint(list_of_tables)
+
+connection.execute(
+    "insert into pet (name, kind, age, food) values (?, ?, ?, ?)",
+    ("Dorothy", "dog", 11, "peanut butter"),
+)
+connection.execute(
+    "insert into pet (name, kind, age, food) values (?, ?, ?, ?)",
+    ("Whiskers", "hamster", 1, "hamster chow"),
+)
+
+connection.commit()
+
+cursor = connection.execute("select sql from sqlite_master where type='table' and name=?",
+    ("pet",))
+row = cursor.fetchone()
+pprint(row[0] if row else "")
+
+cursor = connection.execute("select * from pet")
+row = cursor.fetchone()
+pprint(row)
+
+cursor = connection.execute("select * from pet")
+rows = cursor.fetchall()
+pprint(rows)
+
+print("try with a wrong name")
+for i in [1,2]:
+    try:
+        connection.execute("insert into petz (name, kind, age, food) values (?, ?, ?, ?)",("Sandy","cat",9,"tuna"))
+    except sqlite3.Error as e:
+        print("Caught sqlite error:", e)
+
+print("try with the correct name")
+for i in [1,2]:
+    try:
+        connection.execute("insert into pet (name, kind, age, food) values (?, ?, ?, ?)",("Sandy","cat",9,"tuna"))
+        connection.commit()
+        print("insert succeeded")
+        break
+    except sqlite3.Error as e:
+        print("Caught sqlite error:", e)
+
+connection.execute(
+    "insert into pet (name, kind, age, food) values (?, ?, ?, ?)",
+    ("Maxwell", "cat", 11, "tuna"),
+)
+connection.execute(
+    "insert into pet (name, kind, age, food) values (?, ?, ?, ?)",
+    ("Stash", "mouse", 1, "cheese"),
+)
+
+connection.commit()
+
+connection.execute(
+    "delete from pet where name=?",("Stash",)
+    )
+connection.commit()
+print("deletion complete")
+
+connection.execute(
+    "update pet set age=12, food='pretzels' where name=?",("Dorothy",)
+    )
+connection.commit()
+print("update complete")
+
+
+
+print("done.")</code></pre></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-02-sql-in-python/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) {
+  if (link === selected) link.setAttribute('aria-current', 'true');
+  else link.removeAttribute('aria-current');
+ }
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

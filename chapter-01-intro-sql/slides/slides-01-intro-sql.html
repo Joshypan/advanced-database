@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 1: Working with SQL in SQLite</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="working-with-sql-in-sqlite">Working with SQL in SQLite</h1>
+<p>Structured Query Language (SQL)</p>
+<p>Create records. Ask for them. Change what persists.</p>
+</section>
+<section><h2 id="a-fresh-practice-database">A Fresh Practice Database</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> sqlite_practice</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> sqlite_practice</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db</span></code></pre></div>
+<p>Which directory contains this database?</p>
+</section>
+<section><h2 id="which-program-reads-the-command">Which Program Reads the
+Command?</h2>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Who reads it?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sqlite3 pets.db</code></td>
+<td>Operating-system shell</td>
+</tr>
+<tr>
+<td><code>.tables</code></td>
+<td>SQLite command-line shell</td>
+</tr>
+<tr>
+<td><code>SELECT * FROM pet;</code></td>
+<td>SQLite database engine</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>$</code> and <code>sqlite&gt;</code> prompts are not
+input.</p>
+</section>
+<section><h2 id="inspecting-the-database">Inspecting the Database</h2>
+<p>Transcript excerpt:</p>
+<pre class="text"><code>sqlite&gt; .schema
+sqlite&gt; .tables
+sqlite&gt; .headers on
+sqlite&gt; .mode column</code></pre>
+<p>Definitions, table names, and readable output</p>
+</section>
+<section><h2 id="creating-the-pet-table">Creating the Pet Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pet (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> <span class="dt">INTEGER</span> <span class="kw">PRIMARY</span> <span class="kw">KEY</span> AUTOINCREMENT,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    name TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    kind TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    age <span class="dt">INTEGER</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    food TEXT</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>The table exists. There are no pets yet.</p>
+</section>
+<section><h2 id="inserting-dorothy">Inserting Dorothy</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> pet (name, kind, age, food)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="st">&#39;Dorothy&#39;</span>, <span class="st">&#39;dog&#39;</span>, <span class="dv">11</span>, <span class="st">&#39;peanut butter&#39;</span>);</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dorothy</td>
+<td>dog</td>
+<td>11</td>
+<td>peanut butter</td>
+</tr>
+</tbody>
+</table>
+<p>Where does <code>id</code> come from?</p>
+</section>
+<section><h2 id="reading-the-pets">Reading the Pets</h2>
+<p>After inserting Sandy and Whiskers:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pet;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Dorothy</td>
+<td>dog</td>
+<td>11</td>
+<td>peanut butter</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sandy</td>
+<td>cat</td>
+<td>11</td>
+<td>tuna</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Whiskers</td>
+<td>hamster</td>
+<td>11</td>
+<td>hamster chow</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="choosing-columns-and-rows">Choosing Columns and Rows</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, food</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pet</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sandy</td>
+<td>tuna</td>
+</tr>
+</tbody>
+</table>
+<p>Which part chooses columns? Which part chooses rows?</p>
+</section>
+<section><h2 id="deleting-the-cats">Deleting the Cats</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pet <span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DELETE</span> <span class="kw">FROM</span> pet <span class="kw">WHERE</span> kind <span class="op">=</span> <span class="st">&#39;cat&#39;</span>;</span></code></pre></div>
+<p>Remaining identifiers: <strong>1 and 3</strong></p>
+<p>What would happen without <code>WHERE</code>?</p>
+</section>
+<section><h2 id="a-query-from-the-shell">A Query from the Shell</h2>
+<p>Leave SQLite with <code>.quit</code>, then run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db <span class="at">-header</span> <span class="at">-column</span> <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;SELECT * FROM pet WHERE name = &#39;Whiskers&#39;;&quot;</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>kind</th>
+<th>age</th>
+<th>food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>Whiskers</td>
+<td>hamster</td>
+<td>11</td>
+<td>hamster chow</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="several-lines-of-shell-input">Several Lines of Shell Input</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sqlite3</span> pets.db <span class="op">&lt;&lt;&#39;SQL&#39;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="st">SELECT *</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="st">FROM pet;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="op">SQL</span></span></code></pre></div>
+<p>The closing <code>SQL</code> marks the end of the input.</p>
+</section>
+<section><h2 id="restoring-sandy-for-the-sorting-examples">Restoring Sandy for
+the Sorting Examples</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> pet (<span class="kw">id</span>, name, kind, age, food)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="dv">2</span>, <span class="st">&#39;Sandy&#39;</span>, <span class="st">&#39;cat&#39;</span>, <span class="dv">11</span>, <span class="st">&#39;tuna&#39;</span>);</span></code></pre></div>
+<p>The transcript skips this step.</p>
+</section>
+<section><h2 id="sorting-the-result">Sorting the Result</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, kind <span class="kw">FROM</span> pet <span class="kw">ORDER</span> <span class="kw">BY</span> kind;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sandy</td>
+<td>cat</td>
+</tr>
+<tr>
+<td>Dorothy</td>
+<td>dog</td>
+</tr>
+<tr>
+<td>Whiskers</td>
+<td>hamster</td>
+</tr>
+</tbody>
+</table>
+<p>What order would <code>ORDER BY food</code> produce?</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

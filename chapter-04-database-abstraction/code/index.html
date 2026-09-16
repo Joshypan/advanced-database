@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Database Abstraction</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) {
+ main { padding: 12px; } h1 { font-size: 21px; }
+ .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; }
+ nav { border-right: 0; border-bottom: 1px solid #ccd6dc; }
+}
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Database Abstraction: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li>
+<li><a href="#file-73657475705f64617461626173652e7079">setup_database.py</a></li>
+<li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
+<li><a href="#file-74656d706c617465732f6572726f722e68746d6c">templates/error.html</a></li>
+<li><a href="#file-74656d706c617465732f68656c6c6f2e68746d6c">templates/hello.html</a></li>
+<li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
+<li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f706574732e6462">test_pets.db</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079"><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>from flask import Flask, render_template, request, redirect, url_for
+
+import database
+
+app = Flask(__name__)
+database.setup_database("pets.db")
+
+
+@app.route("/", methods=["GET"])
+@app.route("/hello", methods=["GET"])
+@app.route("/hello/&lt;name&gt;", methods=["GET"])
+def get_hello(name="world"):
+    return render_template("hello.html", name=name)
+
+
+@app.route("/bye", methods=["GET"])
+def get_bye():
+    return "Bye!"
+
+
+@app.route("/pets", methods=["GET"])
+@app.route("/list", methods=["GET"])
+def get_pets():
+    return render_template("list.html", pets=database.get_pets())
+
+
+@app.route("/create", methods=["GET"])
+def get_create():
+    return render_template("create.html")
+
+
+@app.route("/create", methods=["POST"])
+def post_create():
+    database.create_pet(dict(request.form))
+    return redirect(url_for("get_pets"))
+
+
+@app.route("/update", methods=["GET"])
+@app.route("/update/&lt;int:id&gt;", methods=["GET"])
+def get_update(id=None):
+    if id is None:
+        return render_template("error.html", error_message="No ID was provided."), 400
+    data = database.get_pet(id)
+    if data is None:
+        return render_template("error.html", error_message="Data not found."), 404
+    return render_template("update.html", data=data)
+
+
+@app.route("/update", methods=["POST"])
+@app.route("/update/&lt;int:id&gt;", methods=["POST"])
+def post_update(id=None):
+    if id is None:
+        return render_template("error.html", error_message="No ID was provided."), 400
+    if database.get_pet(id) is None:
+        return render_template("error.html", error_message="Data not found."), 404
+    database.update_pet(id, dict(request.form))
+    return redirect(url_for("get_pets"))
+
+
+@app.route("/delete/&lt;int:id&gt;", methods=["GET"])
+def get_delete(id):
+    database.delete_pet(id)
+    return redirect(url_for("get_pets"))
+</code></pre></section>
+<section class="source-file" id="file-64617461626173652e7079" aria-labelledby="title-file-64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-64617461626173652e7079">database.py</h2></header><pre><code>import sqlite3
+from pprint import pprint
+
+connection = None
+
+def initialize(database_file):
+    global connection
+    connection = sqlite3.connect(database_file, check_same_thread=False)
+    connection.row_factory = sqlite3.Row
+    print("succeeded in making connection.")
+
+def setup_database(database_file):
+    initialize(database_file)
+    connection.execute(
+        """create table if not exists pet (
+            id integer primary key autoincrement,
+            name text not null,
+            type text not null,
+            age integer,
+            food text,
+            owner text
+        )"""
+    )
+    columns = {row["name"] for row in connection.execute("pragma table_info(pet)")}
+    for column in ("food", "owner"):
+        if column not in columns:
+            connection.execute("alter table pet add column " + column + " text")
+    connection.commit()
+
+
+def get_pets():
+    cursor = connection.cursor()
+    cursor.execute("""select * from pet""")
+    pets = cursor.fetchall()
+    pets = [dict(pet) for pet in pets]
+    for pet in pets:
+        print(pet)
+    return pets
+
+def get_pet(id):
+    id = int(id)
+    cursor = connection.cursor()
+    cursor.execute("""select * from pet where id = ?""", (id,))
+    pet = cursor.fetchone()
+    if pet is None:
+        return None
+    return dict(pet)
+
+
+def create_pet(data):
+    try:
+        data["age"] = int(data["age"])
+    except:
+        data["age"] = 0
+    cursor = connection.cursor()
+    cursor.execute(
+        """insert into pet(name, age, type, food, owner) values (?,?,?,?,?)""",
+        (data["name"], data["age"], data["type"], data["food"], data["owner"]),
+    )
+    connection.commit()
+
+def delete_pet(id):
+    id = int(id)
+    cursor = connection.cursor()
+    cursor.execute("""delete from pet where id = ?""", (id,))
+    connection.commit()
+
+def update_pet(id, data):
+    try:
+        data["age"] = int(data["age"])
+    except:
+        data["age"] = 0
+    cursor = connection.cursor()
+    cursor.execute(
+        """update pet set name=?, age=?, type=?, food=?, owner=? where id=?""",
+        (data["name"], data["age"], data["type"], data["food"], data["owner"], id),
+    )
+    connection.commit()
+
+def setup_test_database():
+    setup_database("test_pets.db")
+    connection.execute("delete from pet")
+    connection.commit()
+    pets = [
+        {"name": "dorothy", "type": "dog", "age": 9, "food": "pet food", "owner": "greg"},
+        {"name": "suzy", "type": "mouse", "age": 9, "food": "pet food", "owner": "greg"},
+        {"name": "casey", "type": "dog", "age": 9, "food": "pet food", "owner": "greg"},
+        {"name": "heidi", "type": "cat", "age": 15, "food": "tuna", "owner": "david"},
+    ]
+    for pet in pets:
+        create_pet(pet)
+    pets = get_pets()
+    assert len(pets) == 4
+
+
+def test_get_pets():
+    print("testing get_pets()")
+    pets = get_pets()
+    assert type(pets) is list
+    assert type(pets[0]) is dict
+    for key in ["name", "age", "type", "food", "owner"]:
+        assert key in pets[0]
+        assert type(pets[0]["name"]) == str 
+
+
+def test_create_pet():
+    print("testing create_pet()")
+    create_pet({"name": "Food test", "age": 2, "type": "cat",
+                "food": "salmon", "owner": "alex"})
+    pet = get_pets()[-1]
+    assert pet["food"] == "salmon"
+    assert pet["owner"] == "alex"
+    pet["food"] = "tuna"
+    pet["owner"] = "sam"
+    update_pet(pet["id"], pet)
+    saved = get_pet(pet["id"])
+    assert saved["food"] == "tuna"
+    assert saved["owner"] == "sam"
+    delete_pet(pet["id"])
+    assert get_pet(pet["id"]) is None
+
+
+if __name__ == "__main__":
+    setup_test_database()
+    test_get_pets()
+    test_create_pet()
+    print("done.")
+
+# initialize("pets.db")
+# cursor = connection.execute("select * from pet")
+# rows = [dict(row) for row in cursor.fetchall()]
+# pprint(rows)
+
+# These is a tuple
+# ("a",1,"b",2)
+# This is a dictionary
+# { "name": "a","age":1,"kind":"b","whatever":2 }
+</code></pre></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-73657475705f64617461626173652e7079" aria-labelledby="title-file-73657475705f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f64617461626173652e7079">setup_database.py</h2></header><pre><code>import argparse
+import database
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Create or update the pet database.")
+    parser.add_argument("database_file", nargs="?", default="pets.db")
+    args = parser.parse_args()
+    database.setup_database(args.database_file)
+    database.connection.close()
+    print(f"Ready: {args.database_file}")
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</h2></header><pre><code>&lt;html&gt;
+    &lt;head&gt;&lt;/head&gt;
+    &lt;body&gt;
+        This is the create template. 
+        &lt;form action="/create" method="post"&gt;
+            &lt;hr/&gt;
+            &lt;p&gt;Name:&lt;input name="name"/&gt;&lt;/p&gt;
+            &lt;p&gt;Age:&lt;input name="age"/&gt;&lt;/p&gt;
+            &lt;p&gt;Type:&lt;input name="type"/&gt;&lt;/p&gt;
+            &lt;p&gt;Food:&lt;input name="food"/&gt;&lt;/p&gt;
+            &lt;p&gt;Owner:&lt;input name="owner"/&gt;&lt;/p&gt;
+            &lt;hr/&gt;
+            &lt;button type="submit"&gt;Create&lt;/button&gt;
+            &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+            &lt;hr/&gt;
+        &lt;/form&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6572726f722e68746d6c" aria-labelledby="title-file-74656d706c617465732f6572726f722e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6572726f722e68746d6c">templates/error.html</h2></header><pre><code>&lt;html&gt;
+    &lt;head&gt;
+        &lt;title&gt;Pet List&lt;/title&gt;
+        &lt;meta charset="utf-8"&gt;
+        &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+        &lt;link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"&gt;
+        &lt;script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"&gt;&lt;/script&gt;
+    &lt;/head&gt;
+    &lt;body&gt;&lt;H1&gt;ERROR&lt;/H1&gt;
+        &lt;hr/&gt;
+        &lt;em&gt;{{error_message}}&lt;/em&gt;
+        &lt;hr&gt;
+        &lt;a href="/list"&gt;OK&lt;/a&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f68656c6c6f2e68746d6c" aria-labelledby="title-file-74656d706c617465732f68656c6c6f2e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f68656c6c6f2e68746d6c">templates/hello.html</h2></header><pre><code>&lt;html&gt;
+    &lt;body&gt;Hello, {{ name }}! (from the template)&lt;/body&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</h2></header><pre><code>&lt;html&gt;
+    &lt;h3&gt;List:&lt;/h3&gt;
+    &lt;table&gt;
+        &lt;tr&gt;
+            &lt;th&gt;ID&lt;/th&gt;
+            &lt;th&gt;Name&lt;/th&gt;
+            &lt;th&gt;Type&lt;/th&gt;
+            &lt;th&gt;Age&lt;/th&gt;
+            &lt;th&gt;Food&lt;/th&gt;
+            &lt;th&gt;Owner&lt;/th&gt;
+        &lt;/tr&gt;
+        {% for pet in pets %}
+        &lt;tr&gt;
+            {% for key in ['id', 'name', 'type', 'age', 'food', 'owner'] %}
+            &lt;td&gt;{{ pet[key] if pet[key] is not none else '' }}&lt;/td&gt;
+            {% endfor %}
+            &lt;td&gt;&lt;a href="/delete/{{pet['id']}}"&gt;Delete&lt;/a&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;a href="/update/{{pet['id']}}"&gt;Update&lt;/a&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+        {% endfor %}
+    &lt;/table&gt;
+    &lt;hr/&gt;
+    &lt;a href="/create"&gt;Create New Pet&lt;/a&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</h2></header><pre><code>&lt;html&gt;
+    &lt;head&gt;&lt;/head&gt;
+    &lt;body&gt;
+        This is the update template. 
+        &lt;form action="/update/{{data['id']}}" method="post"&gt;
+            &lt;hr/&gt;
+            &lt;p&gt;Name:&lt;input name="name" value="{{data['name']}}"/&gt;&lt;/p&gt;
+            &lt;p&gt;Age:&lt;input name="age" value="{{data['age']}}"/&gt;&lt;/p&gt;
+            &lt;p&gt;Type:&lt;input name="type" value="{{data['type']}}"/&gt;&lt;/p&gt;
+            &lt;p&gt;Food:&lt;input name="food" value="{{data['food'] or ''}}"/&gt;&lt;/p&gt;
+            &lt;p&gt;Owner:&lt;input name="owner" value="{{data['owner']}}"/&gt;&lt;/p&gt;
+            &lt;hr/&gt;
+            &lt;button type="submit"&gt;Update&lt;/button&gt;
+            &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+            &lt;hr/&gt;
+        &lt;/form&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-746573745f706574732e6462" aria-labelledby="title-file-746573745f706574732e6462" hidden><header class="file-header"><h2 id="title-file-746573745f706574732e6462">test_pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-04-database-abstraction/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) {
+  if (link === selected) link.setAttribute('aria-current', 'true');
+  else link.removeAttribute('aria-current');
+ }
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

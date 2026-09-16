@@ -39,6 +39,8 @@ code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 <div class="browser">
 <nav aria-label="Files"><ul><li><a href="#file-6170702e7079">app.py</a></li>
 <li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-6a736f6e5f64617461626173655f6c617965722e7079">json_database_layer.py</a></li>
+<li><a href="#file-6a736f6e626173652e7079">jsonbase.py</a></li>
 <li><a href="#file-706574732e6462">pets.db</a></li>
 <li><a href="#file-73657475705f64617461626173652e7079">setup_database.py</a></li>
 <li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
@@ -46,6 +48,7 @@ code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 <li><a href="#file-74656d706c617465732f68656c6c6f2e68746d6c">templates/hello.html</a></li>
 <li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
 <li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f6a736f6e5f64617461626173652e7079">test_json_database.py</a></li>
 <li><a href="#file-746573745f706574732e6462">test_pets.db</a></li></ul></nav>
 <div class="viewer"><section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079"><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>from flask import Flask, render_template, request, redirect, url_for
 
@@ -249,6 +252,116 @@ if __name__ == "__main__":
 # This is a dictionary
 # { "name": "a","age":1,"kind":"b","whatever":2 }
 </code></pre></section>
+<section class="source-file" id="file-6a736f6e5f64617461626173655f6c617965722e7079" aria-labelledby="title-file-6a736f6e5f64617461626173655f6c617965722e7079" hidden><header class="file-header"><h2 id="title-file-6a736f6e5f64617461626173655f6c617965722e7079">json_database_layer.py</h2></header><pre><code>"""Pet database operations using one JSON file per record.
+
+Change app.py to: import json_database_layer as database
+The existing setup_database("pets.db") call selects pets_json, leaving SQLite alone.
+An explicit folder is also accepted: setup_database("practice_records").
+"""
+from pathlib import Path
+from jsonbase import JsonBase
+
+store = None
+
+
+def initialize(database_file):
+    global store
+    folder = Path(database_file)
+    if folder.suffix == ".db":
+        folder = folder.with_name(folder.stem + "_json")
+    store = JsonBase(folder)
+
+
+def setup_database(database_file):
+    initialize(database_file)
+
+
+def get_pets():
+    return store.get_all()
+
+
+def get_pet(id):
+    return store.get(id)
+
+
+def pet_record(data):
+    try:
+        age = int(data["age"])
+    except (KeyError, TypeError, ValueError):
+        age = 0
+    return {"name": data["name"], "age": age, "type": data["type"],
+            "food": data["food"], "owner": data["owner"]}
+
+
+def create_pet(data):
+    store.create(pet_record(data))
+
+
+def update_pet(id, data):
+    store.update(id, pet_record(data))
+
+
+def delete_pet(id):
+    store.delete(id)
+</code></pre></section>
+<section class="source-file" id="file-6a736f6e626173652e7079" aria-labelledby="title-file-6a736f6e626173652e7079" hidden><header class="file-header"><h2 id="title-file-6a736f6e626173652e7079">jsonbase.py</h2></header><pre><code>"""Store dictionaries as numbered JSON files in a specified folder."""
+import json
+from pathlib import Path
+import tempfile
+
+
+class JsonBase:
+    def __init__(self, folder):
+        self.folder = Path(folder)
+        self.folder.mkdir(parents=True, exist_ok=True)
+        self.counter = self.folder / ".next-id"
+
+    def _path(self, id):
+        return self.folder / f"{int(id)}.json"
+
+    def _write(self, path, text):
+        # Write completely before replacing the destination.
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                                         dir=self.folder, delete=False) as output:
+            temporary = Path(output.name)
+            try:
+                output.write(text)
+            except BaseException:
+                temporary.unlink(missing_ok=True)
+                raise
+        try:
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def get_all(self):
+        paths = sorted(self.folder.glob("[0-9]*.json"), key=lambda p: int(p.stem))
+        return [self.get(path.stem) for path in paths]
+
+    def get(self, id):
+        path = self._path(id)
+        if not path.exists():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def create(self, data):
+        existing = [int(p.stem) for p in self.folder.glob("[0-9]*.json")]
+        next_id = int(self.counter.read_text()) if self.counter.exists() else 1
+        id = max(next_id, max(existing, default=0) + 1)
+        text = json.dumps(dict(data, id=id), indent=2, ensure_ascii=False) + "\n"
+        self._write(self.counter, str(id + 1))
+        self._write(self._path(id), text)
+        return id
+
+    def update(self, id, data):
+        path = self._path(id)
+        if path.exists():
+            text = json.dumps(dict(data, id=int(id)), indent=2, ensure_ascii=False) + "\n"
+            self._write(path, text)
+
+    def delete(self, id):
+        self._path(id).unlink(missing_ok=True)
+</code></pre></section>
 <section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
 <section class="source-file" id="file-73657475705f64617461626173652e7079" aria-labelledby="title-file-73657475705f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f64617461626173652e7079">setup_database.py</h2></header><pre><code>import argparse
 import database
@@ -339,6 +452,115 @@ if __name__ == "__main__":
         &lt;/form&gt;
     &lt;/body&gt;
 &lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-746573745f6a736f6e5f64617461626173652e7079" aria-labelledby="title-file-746573745f6a736f6e5f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-746573745f6a736f6e5f64617461626173652e7079">test_json_database.py</h2></header><pre><code>"""Run with python3 -m unittest -v test_json_database.py."""
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from jsonbase import JsonBase
+import json_database_layer as database
+
+
+class JsonDatabaseTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.folder = Path(self.temp.name) / "records"
+
+    def test_records_and_reopening(self):
+        store = JsonBase(self.folder)
+        id = store.create({"name": "O'Malley", "food": "tuna"})
+        self.assertEqual(json.loads((self.folder / f"{id}.json").read_text())["food"], "tuna")
+        reopened = JsonBase(self.folder)
+        self.assertEqual(reopened.get(str(id))["name"], "O'Malley")
+        reopened.update(id, {"id": 900, "name": "Changed"})
+        self.assertEqual(store.get(id), {"id": id, "name": "Changed"})
+        reopened.delete(id)
+        self.assertIsNone(store.get(id))
+        self.assertEqual(store.get_all(), [])
+        self.assertGreater(JsonBase(self.folder).create({"name": "Next"}), id)
+
+    def test_separate_folders_and_missing_records(self):
+        first = JsonBase(self.folder)
+        second = JsonBase(Path(self.temp.name) / "other")
+        first.create({"name": "A"})
+        second.update(99, {"name": "Absent"})
+        second.delete(99)
+        self.assertIsNone(second.get(99))
+        self.assertEqual(second.get_all(), [])
+
+    def test_failed_serialization_preserves_record(self):
+        store = JsonBase(self.folder)
+        id = store.create({"name": "Original"})
+        with self.assertRaises(TypeError):
+            store.update(id, {"name": object()})
+        self.assertEqual(store.get(id)["name"], "Original")
+
+    def test_adapter_and_sqlite_file_preserved(self):
+        path = Path(self.temp.name) / "pets.db"
+        path.write_bytes(b"leave this file alone")
+        database.setup_database(path)
+        data = dict(name="Dorothy", type="dog", age="bad", food="kibble", owner="Greg")
+        self.assertIsNone(database.create_pet(data))
+        pet = database.get_pets()[0]
+        self.assertEqual(pet["age"], 0)
+        data.update(age="12", food="salmon", owner="Sam")
+        self.assertIsNone(database.update_pet(pet["id"], data))
+        database.setup_database(path)
+        saved = database.get_pet(pet["id"])
+        self.assertEqual((saved["age"], saved["food"], saved["owner"]), (12, "salmon", "Sam"))
+        self.assertIsNone(database.delete_pet(pet["id"]))
+        self.assertIsNone(database.get_pet(pet["id"]))
+        self.assertEqual(path.read_bytes(), b"leave this file alone")
+
+    def test_same_app_with_both_backends(self):
+        source = Path(__file__).resolve().parent
+        for backend in ("database", "json_database_layer"):
+            with self.subTest(backend=backend):
+                work = Path(self.temp.name) / backend
+                work.mkdir()
+                for name in ("app.py", "database.py", "jsonbase.py", "json_database_layer.py"):
+                    shutil.copy2(source / name, work / name)
+                shutil.copytree(source / "templates", work / "templates")
+                p = work / "app.py"
+                p.write_text(p.read_text().replace("import database\n", f"import {backend} as database\n", 1))
+                script = '''import app
+c = app.app.test_client()
+for path in ('/', '/pets', '/list', '/create'):
+    assert c.get(path).status_code == 200
+assert c.get('/update').status_code == 400
+assert c.get('/update/999').status_code == 404
+assert c.post('/update/999', data={}).status_code == 404
+data = dict(name="O'Malley", type='cat', age='4', food='tuna', owner='Alex')
+assert c.post('/create', data=data).status_code == 302
+pet = app.database.get_pets()[0]
+assert c.get('/update/'+str(pet['id'])).status_code == 200
+assert b'O&amp;#39;Malley' in c.get('/list').data
+data.update(food='salmon', owner='Sam', age='5')
+assert c.post('/update/'+str(pet['id']), data=data).status_code == 302
+saved = app.database.get_pet(pet['id'])
+assert (saved['food'], saved['owner'], saved['age']) == ('salmon', 'Sam', 5)
+'''
+                restart = '''import app
+pet = app.database.get_pets()[0]
+assert (pet['food'], pet['owner'], pet['age']) == ('salmon', 'Sam', 5)
+c = app.app.test_client()
+assert c.get('/delete/'+str(pet['id'])).status_code == 302
+assert app.database.get_pet(pet['id']) is None
+assert app.database.get_pets() == []
+'''
+                for program in (script, restart):
+                    result = subprocess.run([sys.executable, "-B", "-c", program], cwd=work,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section>
 <section class="source-file" id="file-746573745f706574732e6462" aria-labelledby="title-file-746573745f706574732e6462" hidden><header class="file-header"><h2 id="title-file-746573745f706574732e6462">test_pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section></div>
 </div>
 <p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-04-database-abstraction/code">course repository</a>.</p>

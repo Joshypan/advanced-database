@@ -1,0 +1,19 @@
+<html>
+
+<head></head>
+
+<body>
+    This is the owner update template.
+    <form action="/owner/update/{{data['id']}}" method="post">
+        <hr />
+        <p>Name:<input name="name" value="{{data['name']}}" /></p>
+        <p>City:<input name="city" value="{{data['city']}}" /></p>
+        <p>Type of Home:<input name="type_of_home" value="{{data['type_of_home']}}" /></p>
+        <hr />
+        <button type="submit">Update</button>
+        <a href="/owners">Cancel</a>
+        <hr />
+    </form>
+</body>
+
+</html>

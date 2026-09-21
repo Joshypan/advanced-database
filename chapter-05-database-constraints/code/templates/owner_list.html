@@ -1,0 +1,32 @@
+<html>
+{% if error %}
+<div style="color:red; font-weight: bold;">
+    {{ error }}
+</div>
+<hr />
+{% endif %}
+<h3>Owners:</h3>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>City</th>
+        <th>Type of Home</th>
+    </tr>
+    {% for owner in owners %}
+    <tr>
+        <td>{{ owner['id'] }}</td>
+        <td>{{ owner['name'] }}</td>
+        <td>{{ owner['city'] }}</td>
+        <td>{{ owner['type_of_home'] }}</td>
+        <td><a href="/owner/delete/{{owner['id']}}">Delete</a></td>
+        <td><a href="/owner/update/{{owner['id']}}">Update</a></td>
+    </tr>
+    {% endfor %}
+</table>
+<hr />
+<a href="/owner/create">Create New Owner</a>
+<hr />
+<a href="/list">Back to Pets</a>
+
+</html>

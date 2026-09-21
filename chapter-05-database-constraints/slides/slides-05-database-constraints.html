@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 5: Database Constraints</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="database-constraints">Database Constraints</h1>
+<p>Pets, owners, and rules for their relationship</p>
+<hr style="border:0;border-top:1px solid #c3cbd0;margin:32px 0 18px">
+<p class="slide-author" style="font-size:22px">
+Gregory S. DeLozier, PhD
+</p>
+</section>
+<section><h2 id="one-owner-several-pets">One Owner, Several Pets</h2>
+<table>
+<thead>
+<tr>
+<th>Pet</th>
+<th>Owner</th>
+<th>City</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Casey</td>
+<td>Alex</td>
+<td>Kent</td>
+</tr>
+<tr>
+<td>Heidi</td>
+<td>Alex</td>
+<td>Kent</td>
+</tr>
+</tbody>
+</table>
+<p>Alex moves to Akron. Where should that change live?</p>
+</section>
+<section><h2 id="references-to-owner-records">References to Owner Records</h2>
+<p><img src="slide-assets/diagram-03.svg"
+alt="References to Owner Records" /></p>
+<p>One owner can have many pets. Each pet has one owner.</p>
+</section>
+<section><h2 id="running-the-example">Running the Example</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> setup_database.py</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
+<p><code>http://127.0.0.1:5000/list</code></p>
+<p><strong>Manage Owners</strong> opens the owner pages.</p>
+</section>
+<section><h2 id="the-owner-table">The Owner Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> owner (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> <span class="dt">INTEGER</span> <span class="kw">PRIMARY</span> <span class="kw">KEY</span> AUTOINCREMENT,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    name TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    city TEXT,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    type_of_home TEXT</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><code>id</code> identifies the person. <code>name</code> describes
+them.</p>
+</section>
+<section><h2 id="the-pet-table">The Pet Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pet (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span> <span class="dt">INTEGER</span> <span class="kw">PRIMARY</span> <span class="kw">KEY</span> AUTOINCREMENT,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    name TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">type</span> TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    age <span class="dt">INTEGER</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    food TEXT,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    owner_id <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (owner_id) <span class="kw">REFERENCES</span> owner(<span class="kw">id</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+</section>
+<section><h2 id="two-rules-on-owner_id">Two Rules on <code>owner_id</code></h2>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NULL</code></td>
+<td>Rejected by <code>NOT NULL</code></td>
+</tr>
+<tr>
+<td>An absent owner’s identifier</td>
+<td>Rejected by the foreign key</td>
+</tr>
+<tr>
+<td>An existing owner’s identifier</td>
+<td>Accepted</td>
+</tr>
+</tbody>
+</table>
+<p>Referential integrity: references point to existing records.</p>
+</section>
+<section><h2 id="foreign-keys-on-this-connection">Foreign Keys on This
+Connection</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(<span class="st">&quot;PRAGMA foreign_keys = ON&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fk <span class="op">=</span> connection.execute(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;PRAGMA foreign_keys&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>).fetchone()[<span class="dv">0</span>]</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> fk <span class="op">==</span> <span class="dv">1</span></span></code></pre></div>
+<p>A separate connection needs its own setting.</p>
+</section>
+<section><h2 id="the-database-interface">The Database Interface</h2>
+<table>
+<thead>
+<tr>
+<th>Pet operation</th>
+<th>Owner operation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_pets()</code></td>
+<td><code>get_owners()</code></td>
+</tr>
+<tr>
+<td><code>get_pet(id)</code></td>
+<td><code>get_owner(id)</code></td>
+</tr>
+<tr>
+<td><code>create_pet(data)</code></td>
+<td><code>create_owner(data)</code></td>
+</tr>
+<tr>
+<td><code>update_pet(id, data)</code></td>
+<td><code>update_owner(id, data)</code></td>
+</tr>
+<tr>
+<td><code>delete_pet(id)</code></td>
+<td><code>delete_owner(id)</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="names-on-screen-identifiers-in-the-form">Names on Screen,
+Identifiers in the Form</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode html"><code class="sourceCode html"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">select</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;owner_id&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  {% for owner in owners %}</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;</span><span class="kw">option</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{ owner[&#39;id&#39;] }}&quot;</span><span class="dt">&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    {{ owner[&#39;name&#39;] }}</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;/</span><span class="kw">option</span><span class="dt">&gt;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  {% endfor %}</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">select</span><span class="dt">&gt;</span></span></code></pre></div>
+<p>Alex appears on screen. <code>"1"</code> travels with the
+request.</p>
+</section>
+<section><h2 id="saving-the-reference">Saving the Reference</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;INSERT INTO pet(name, age, type, food, owner_id) &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;VALUES (?,?,?,?,?)&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (data[<span class="st">&quot;name&quot;</span>], data[<span class="st">&quot;age&quot;</span>], data[<span class="st">&quot;type&quot;</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>     data.get(<span class="st">&quot;food&quot;</span>, <span class="st">&quot;&quot;</span>), data[<span class="st">&quot;owner_id&quot;</span>]),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
+<p>SQLite checks the relationship during the insert.</p>
+</section>
+<section><h2 id="application-checks-and-constraints">Application Checks and
+Constraints</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Where it happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Owner selection is blank</td>
+<td>Flask route</td>
+</tr>
+<tr>
+<td>Owner selection contains non-digits</td>
+<td>Flask route</td>
+</tr>
+<tr>
+<td>Referenced owner exists</td>
+<td>SQLite</td>
+</tr>
+<tr>
+<td>Required fields are not <code>NULL</code></td>
+<td>SQLite</td>
+</tr>
+</tbody>
+</table>
+<p>A dropdown helps selection. The database checks the relationship.</p>
+</section>
+<section><h2 id="displaying-owner-names">Displaying Owner Names</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> pet <span class="kw">in</span> pets:</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    pet[<span class="st">&quot;owner_name&quot;</span>] <span class="op">=</span> <span class="st">&quot;&lt;Unknown&gt;&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> owner <span class="kw">in</span> owners:</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> owner[<span class="st">&quot;id&quot;</span>] <span class="op">==</span> pet[<span class="st">&quot;owner_id&quot;</span>]:</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>            pet[<span class="st">&quot;owner_name&quot;</span>] <span class="op">=</span> owner[<span class="st">&quot;name&quot;</span>]</span></code></pre></div>
+<p><code>owner_name</code> is for display. <code>owner_id</code> is
+stored.</p>
+</section>
+<section><h2 id="reassigning-a-pet">Reassigning a Pet</h2>
+<p>Select <strong>Sam</strong> in Casey’s owner dropdown, then save.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>database.update_pet(<span class="dv">10</span>, {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Casey&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="st">&quot;9&quot;</span>, <span class="st">&quot;type&quot;</span>: <span class="st">&quot;dog&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;food&quot;</span>: <span class="st">&quot;kibble&quot;</span>, <span class="st">&quot;owner_id&quot;</span>: <span class="st">&quot;2&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Pet</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Casey, <code>id=10</code></td>
+<td>Alex, <code>owner_id=1</code></td>
+<td>Sam, <code>owner_id=2</code></td>
+</tr>
+</tbody>
+</table>
+<p>Casey’s other fields stay the same. Both owners remain.</p>
+</section>
+<section><h2 id="deleting-an-owner">Deleting an Owner</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">FOREIGN</span> <span class="kw">KEY</span> (owner_id) <span class="kw">REFERENCES</span> owner(<span class="kw">id</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span></span></code></pre></div>
+<p>Alex still has pets: deletion fails.</p>
+<p>Reassign those pets, then delete Alex: deletion succeeds.</p>
+</section>
+<section><h2 id="testing-the-relationship">Testing the Relationship</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> database.py</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Test operation</th>
+<th>Expected result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Create pet with absent owner</td>
+<td>Constraint error</td>
+</tr>
+<tr>
+<td>Delete owner who has pets</td>
+<td>Constraint error</td>
+</tr>
+<tr>
+<td>Remove pet, then delete owner</td>
+<td>Success</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="food-as-a-shared-record">Food as a Shared Record</h2>
+<p>Two pets eat the same food.</p>
+<p>What would change if <code>food</code> had its own table?</p>
+<table>
+<thead>
+<tr>
+<th>Now</th>
+<th>Proposed exercise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pet.food</code> contains text</td>
+<td><code>pet.food_id</code> refers to a record</td>
+</tr>
+<tr>
+<td>Form accepts a food name</td>
+<td>Form selects an existing food</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="rules-belong-with-the-records">Rules Belong with the
+Records</h2>
+<p>Store the identifier that defines the relationship.</p>
+<p>Let the database enforce whether that reference is valid.</p>
+<p>Test both accepted changes and rejected changes.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

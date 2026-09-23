@@ -358,7 +358,7 @@ def update_owner(id, data):
 
 def get_pets():
     cursor = connection.cursor()
-    cursor.execute("""select * from pet""")
+    cursor.execute("""select * from pet order by id""")
     pets = cursor.fetchall()
     pets = [dict(pet) for pet in pets]
     return pets
@@ -622,7 +622,6 @@ if __name__ == "__main__":
     test_delete_owner()
     close_connection()
     print("done.")
-
 </code></pre></section>
 <section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
 <section class="source-file" id="file-73657475705f64617461626173652e7079" aria-labelledby="title-file-73657475705f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f64617461626173652e7079">setup_database.py</h2></header><pre><code>import argparse
@@ -673,7 +672,7 @@ if __name__ == "__main__":
         {% for pet in pets %}
         &lt;tr&gt;
             {% for key in ["id","name","type","age","food","owner_name"] %}
-            &lt;td&gt;{{ pet[key] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet[key] if pet[key] is not none else '' }}&lt;/td&gt;
             {% endfor %}
             &lt;td&gt;&lt;a href="/delete/{{pet['id']}}"&gt;Delete&lt;/a&gt;&lt;/td&gt;
             &lt;td&gt;&lt;a href="/update/{{pet['id']}}"&gt;Update&lt;/a&gt;&lt;/td&gt;
@@ -683,7 +682,8 @@ if __name__ == "__main__":
     &lt;hr/&gt;
     &lt;a href="/create"&gt;Create New Pet&lt;/a&gt;
     &lt;a href="/owners"&gt;Manage Owners&lt;/a&gt;
-&lt;/html&gt;</code></pre></section>
+&lt;/html&gt;
+</code></pre></section>
 <section class="source-file" id="file-74656d706c617465732f6f776e65725f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f6372656174652e68746d6c">templates/owner_create.html</h2></header><pre><code>&lt;html&gt;
 
 &lt;head&gt;&lt;/head&gt;
@@ -704,12 +704,6 @@ if __name__ == "__main__":
 
 &lt;/html&gt;</code></pre></section>
 <section class="source-file" id="file-74656d706c617465732f6f776e65725f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f6c6973742e68746d6c">templates/owner_list.html</h2></header><pre><code>&lt;html&gt;
-{% if error %}
-&lt;div style="color:red; font-weight: bold;"&gt;
-    {{ error }}
-&lt;/div&gt;
-&lt;hr /&gt;
-{% endif %}
 &lt;h3&gt;Owners:&lt;/h3&gt;
 &lt;table&gt;
     &lt;tr&gt;
@@ -734,7 +728,8 @@ if __name__ == "__main__":
 &lt;hr /&gt;
 &lt;a href="/list"&gt;Back to Pets&lt;/a&gt;
 
-&lt;/html&gt;</code></pre></section>
+&lt;/html&gt;
+</code></pre></section>
 <section class="source-file" id="file-74656d706c617465732f6f776e65725f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f7570646174652e68746d6c">templates/owner_update.html</h2></header><pre><code>&lt;html&gt;
 
 &lt;head&gt;&lt;/head&gt;

@@ -12,7 +12,7 @@
         {% for pet in pets %}
         <tr>
             {% for key in ["id","name","type","age","food","owner_name"] %}
-            <td>{{ pet[key] }}</td>
+            <td>{{ pet[key] if pet[key] is not none else '' }}</td>
             {% endfor %}
             <td><a href="/delete/{{pet['id']}}">Delete</a></td>
             <td><a href="/update/{{pet['id']}}">Update</a></td>

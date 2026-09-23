@@ -78,7 +78,7 @@ def update_owner(id, data):
 
 def get_pets():
     cursor = connection.cursor()
-    cursor.execute("""select * from pet""")
+    cursor.execute("""select * from pet order by id""")
     pets = cursor.fetchall()
     pets = [dict(pet) for pet in pets]
     return pets
@@ -342,4 +342,3 @@ if __name__ == "__main__":
     test_delete_owner()
     close_connection()
     print("done.")
-

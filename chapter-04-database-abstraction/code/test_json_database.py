@@ -62,6 +62,25 @@ class JsonDatabaseTests(unittest.TestCase):
         self.assertIsNone(database.get_pet(pet["id"]))
         self.assertEqual(path.read_bytes(), b"leave this file alone")
 
+    def test_sqlite_order_is_explicit(self):
+        source = Path(__file__).resolve().parent
+        program = """import database
+import tempfile
+from pathlib import Path
+with tempfile.TemporaryDirectory() as folder:
+    database.setup_database(str(Path(folder) / 'pets.db'))
+    for name in ('First', 'Second'):
+        database.create_pet(dict(name=name, type='cat', age=1, food='kibble', owner='Sam'))
+    database.connection.execute('PRAGMA reverse_unordered_selects = ON')
+    pets = database.get_pets()
+    assert [pet['id'] for pet in pets] == sorted(pet['id'] for pet in pets)
+    database.test_create_pet()
+    database.connection.close()
+"""
+        result = subprocess.run([sys.executable, "-B", "-c", program], cwd=source,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_same_app_with_both_backends(self):
         source = Path(__file__).resolve().parent
         for backend in ("database", "json_database_layer"):
@@ -80,6 +99,14 @@ for path in ('/', '/pets', '/list', '/create'):
 assert c.get('/update').status_code == 400
 assert c.get('/update/999').status_code == 404
 assert c.post('/update/999', data={}).status_code == 404
+app.database.create_pet(dict(name='Missing fields', type='cat', age=4,
+                             food=None, owner=None))
+missing = app.database.get_pets()[0]
+form = c.get('/update/'+str(missing['id'])).data
+assert b'name="food" value=""' in form
+assert b'name="owner" value=""' in form
+assert b'value="None"' not in form
+app.database.delete_pet(missing['id'])
 data = dict(name="O'Malley", type='cat', age='4', food='tuna', owner='Alex')
 assert c.post('/create', data=data).status_code == 302
 pet = app.database.get_pets()[0]

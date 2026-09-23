@@ -23,3 +23,9 @@ body { background: var(--paper); }
 .reveal ol { margin-left: 40px; }
 .reveal h1 { font-size: 70px; }
 .reveal .slide-number { right: auto; left: 22px; bottom: 18px; }
+
+/* Give the chapter swimlanes the slide's main reading area. */
+.reveal .slides section:has(img) { padding: 20px 40px; }
+.reveal section:has(img) h2 { margin-bottom: 12px; }
+.reveal section:has(img) p { margin: 0; }
+.reveal section:has(img) img { max-height: 570px; margin: 0; }

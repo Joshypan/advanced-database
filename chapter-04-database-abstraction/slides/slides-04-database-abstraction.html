@@ -186,7 +186,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> database.get_pet(<span class="bu">id</span>)</span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre
 class="sourceCode html"><code class="sourceCode html"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;food&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;food&#39;] or &#39;&#39;}}&quot;</span><span class="dt">/&gt;</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;owner&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;owner&#39;]}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">input</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;owner&quot;</span><span class="ot"> value</span><span class="op">=</span><span class="st">&quot;{{data[&#39;owner&#39;] or &#39;&#39;}}&quot;</span><span class="dt">/&gt;</span></span></code></pre></div>
 <p>The form submits to <code>/update/{{data['id']}}</code>.</p>
 </section>
 <section><h2 id="saving-the-edit">Saving the Edit</h2>

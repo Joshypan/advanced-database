@@ -30,7 +30,7 @@ def setup_database(database_file):
 
 def get_pets():
     cursor = connection.cursor()
-    cursor.execute("""select * from pet""")
+    cursor.execute("""select * from pet order by id""")
     pets = cursor.fetchall()
     pets = [dict(pet) for pet in pets]
     for pet in pets:

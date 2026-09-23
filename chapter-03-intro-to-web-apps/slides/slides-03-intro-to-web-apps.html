@@ -143,30 +143,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 <p>SQLite supplies the identifier.</p>
 </section>
 <section><h2 id="after-the-save">After the Save</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Step</th>
-<th>What happens</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST /create</code></td>
-<td>Insert and commit</td>
-</tr>
-<tr>
-<td><code>302</code> response</td>
-<td>Redirect browser to <code>/pets</code></td>
-</tr>
-<tr>
-<td><code>GET /pets</code></td>
-<td>Query and display saved records</td>
-</tr>
-</tbody>
-</table>
+<p><img src="slide-assets/diagram-12.svg" alt="After the Save" /></p>
 </section>
 <section><h2 id="editing-pet-3">Editing Pet 3</h2>
 <pre class="text"><code>GET /update/3</code></pre>
@@ -179,33 +156,8 @@ class="sourceCode html"><code class="sourceCode html"><span id="cb3-1"><a href="
 </section>
 <section><h2 id="the-persistence-cycle-in-an-edit">The Persistence Cycle in an
 Edit</h2>
-<table>
-<thead>
-<tr>
-<th>Stage</th>
-<th>Pet application</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Determining Action</td>
-<td>Choose Edit for pet 3</td>
-</tr>
-<tr>
-<td>Loading State</td>
-<td><code>GET /update/3</code> reads the record</td>
-</tr>
-<tr>
-<td>Taking Action</td>
-<td>Change fields in the browser</td>
-</tr>
-<tr>
-<td>Saving State</td>
-<td><code>POST /update/3</code> updates and commits</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Display State</strong> can happen anywhere in the cycle.</p>
+<p><img src="slide-assets/diagram-14.svg"
+alt="The Persistence Cycle in an Edit" /></p>
 </section>
 <section><h2 id="deleting-a-pet">Deleting a Pet</h2>
 <pre class="text"><code>GET /delete/3</code></pre>

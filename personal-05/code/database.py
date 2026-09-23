@@ -39,7 +39,7 @@ def get_foods():
     cursor = connection.cursor()
     cursor.execute(
         """
-        select distinct food as name
+        select distinct id, food as name
         from pet
         order by food
         """

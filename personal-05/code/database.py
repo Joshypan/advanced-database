@@ -35,6 +35,18 @@ def close_connection():
             connection = None
 
 
+def get_foods():
+    cursor = connection.cursor()
+    cursor.execute(
+        """
+        select distinct food as name
+        from pet
+        order by food
+        """
+    )
+    foods = [dict(food) for food in cursor.fetchall()]
+    return foods
+
 def get_owners():
     cursor = connection.cursor()
     cursor.execute("""select * from owner""")

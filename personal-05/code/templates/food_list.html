@@ -1,0 +1,17 @@
+<html>
+    <h3>Foods:</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+        </tr>
+        {% for food in foods %}
+        <tr>
+            <td>{{ food["id"] }}</td>
+            <td>{{ food["name"] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <hr/>
+    <a href="/list">Pets</a>
+</html>

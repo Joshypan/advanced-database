@@ -13,6 +13,16 @@ def error_page(message, status=400):
     return message, status, {"Content-Type": "text/plain; charset=utf-8"}
 
 @app.route("/", methods=["GET"]) 
+@app.route("/food", methods=["GET"])
+def get_food():
+    try:
+        foods = database.get_foods()
+        return render_template("food_list.html", foods=foods)
+    except sqlite3.Error as e:
+        return error_page(f"Database error while listing food: {e}", 500)        
+
+
+@app.route("/", methods=["GET"]) 
 @app.route("/list", methods=["GET"])
 def get_list():
     try:

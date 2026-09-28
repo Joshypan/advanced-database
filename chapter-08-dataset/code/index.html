@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Dataset</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Dataset: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-6275696c645f6d7973746572792e7079">build_mystery.py</a></li>
+<li><a href="#file-6372656174655f64622e7368">create_db.sh</a></li>
+<li><a href="#file-6372656174655f64622e73716c">create_db.sql</a></li>
+<li><a href="#file-6578616d706c652e6462">example.db</a></li>
+<li><a href="#file-6578706c6f72655f6d7973746572792e7079">explore_mystery.py</a></li>
+<li><a href="#file-6d7973746572792e6462">mystery.db</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
+<li><a href="#file-74656d706c617465732f6b696e645f6372656174652e68746d6c">templates/kind_create.html</a></li>
+<li><a href="#file-74656d706c617465732f6b696e645f6c6973742e68746d6c">templates/kind_list.html</a></li>
+<li><a href="#file-74656d706c617465732f6b696e645f7570646174652e68746d6c">templates/kind_update.html</a></li>
+<li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
+<li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f6170702e7079">test_app.py</a></li>
+<li><a href="#file-746573745f646174617365745f6578616d706c65732e7079">test_dataset_examples.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079"><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>import os
+
+import dataset
+from flask import Flask, redirect, render_template, request, url_for
+from sqlalchemy.exc import IntegrityError, OperationalError
+
+# SQLite ignores foreign keys unless each connection asks for them.
+DATABASE_URL = os.environ.get("PETS_DATABASE_URL", "sqlite:///pets.db")
+db = dataset.connect(DATABASE_URL, on_connect_statements=["PRAGMA foreign_keys=ON"])
+
+app = Flask(__name__)
+
+
+def error_page(message, status=400):
+    return message, status, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+def text(data, key):
+    return (data.get(key) or "").strip()
+
+
+def check_pet_form(data):
+    """Return a message for a bad pet form, or None when the form is usable."""
+    if text(data, "name") == "":
+        return "Error: name is required."
+    if not text(data, "age").isdigit():
+        return "Error: age must be a whole number, zero or more."
+    if text(data, "owner") == "":
+        return "Error: owner is required."
+    if not text(data, "kind_id").isdigit():
+        return "Error: choose a kind."
+    return None
+
+
+def check_kind_form(data):
+    for key in ("kind_name", "food", "noise"):
+        if text(data, key) == "":
+            return f"Error: {key} is required."
+    return None
+
+
+def pet_values(data):
+    return {
+        "name": text(data, "name"),
+        "age": int(text(data, "age")),
+        "owner": text(data, "owner"),
+        "kind_id": int(text(data, "kind_id")),
+    }
+
+
+@app.route("/")
+@app.route("/list")
+def get_list():
+    # One query with a join, instead of one lookup per pet.
+    pets = list(db.query(
+        "select pets.id, pets.name, pets.age, pets.owner, "
+        "kind.kind_name, kind.food, kind.noise "
+        "from pets join kind on kind.id = pets.kind_id "
+        "order by pets.id"
+    ))
+    return render_template("list.html", pets=pets)
+
+
+@app.route("/create", methods=["GET", "POST"])
+def get_post_create():
+    if request.method == "GET":
+        return render_template("create.html", kinds=db["kind"].all())
+
+    problem = check_pet_form(request.form)
+    if problem:
+        return error_page(problem)
+    try:
+        db["pets"].insert(pet_values(request.form))
+    except IntegrityError as error:
+        return error_page(f"Constraint error creating pet: {error.orig}")
+    return redirect(url_for("get_list"))
+
+
+@app.route("/update/&lt;int:id&gt;", methods=["GET", "POST"])
+def get_post_update(id):
+    pet = db["pets"].find_one(id=id)
+    if pet is None:
+        return error_page("Error: pet not found.", 404)
+
+    if request.method == "GET":
+        return render_template("update.html", pet=pet, kinds=db["kind"].all())
+
+    problem = check_pet_form(request.form)
+    if problem:
+        return error_page(problem)
+    try:
+        db["pets"].update({"id": id, **pet_values(request.form)}, ["id"])
+    except IntegrityError as error:
+        return error_page(f"Constraint error updating pet: {error.orig}")
+    return redirect(url_for("get_list"))
+
+
+@app.route("/delete/&lt;int:id&gt;")
+def get_delete(id):
+    db["pets"].delete(id=id)
+    return redirect(url_for("get_list"))
+
+
+@app.route("/kind/list")
+def list_kinds():
+    return render_template("kind_list.html", kinds=db["kind"].all())
+
+
+@app.route("/kind/create", methods=["GET", "POST"])
+def create_kind():
+    if request.method == "GET":
+        return render_template("kind_create.html")
+
+    problem = check_kind_form(request.form)
+    if problem:
+        return error_page(problem)
+    db["kind"].insert({key: text(request.form, key) for key in ("kind_name", "food", "noise")})
+    return redirect(url_for("list_kinds"))
+
+
+@app.route("/kind/update/&lt;int:id&gt;", methods=["GET", "POST"])
+def update_kind(id):
+    kind = db["kind"].find_one(id=id)
+    if kind is None:
+        return error_page("Error: kind not found.", 404)
+
+    if request.method == "GET":
+        return render_template("kind_update.html", kind=kind)
+
+    problem = check_kind_form(request.form)
+    if problem:
+        return error_page(problem)
+    values = {key: text(request.form, key) for key in ("kind_name", "food", "noise")}
+    db["kind"].update({"id": id, **values}, ["id"])
+    return redirect(url_for("list_kinds"))
+
+
+@app.route("/kind/delete/&lt;int:id&gt;")
+def delete_kind(id):
+    try:
+        db["kind"].delete(id=id)
+    except IntegrityError:
+        message = "Cannot delete this kind because pets use it. Delete or change those pets first."
+        return render_template("kind_list.html", kinds=db["kind"].all(), error_message=message), 400
+    return redirect(url_for("list_kinds"))
+
+
+@app.route("/health")
+def health():
+    try:
+        foreign_keys = list(db.query("pragma foreign_keys"))[0]["foreign_keys"]
+    except OperationalError as error:
+        return error_page(f"Error checking health: {error}", 500)
+    if foreign_keys != 1:
+        return error_page("Error: foreign key constraints are NOT active.", 500)
+    return error_page("ok", 200)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
+</code></pre></section>
+<section class="source-file" id="file-6275696c645f6d7973746572792e7079" aria-labelledby="title-file-6275696c645f6d7973746572792e7079" hidden><header class="file-header"><h2 id="title-file-6275696c645f6d7973746572792e7079">build_mystery.py</h2></header><pre><code>"""Build mystery.db, a small database to explore with the dataset library.
+
+Usage: python3 build_mystery.py [database_file] [--replace]
+
+The builder uses Python's unicodedata and zoneinfo modules. The tzdata package
+supplies the time zone database where the operating system does not. Counts
+vary with the Python version. It refuses to overwrite an existing file unless
+--replace is given.
+
+If you are using this as the "unknown database" exercise, run this script
+once and then do not read it until you have explored the file.
+"""
+import argparse
+from datetime import datetime, timezone
+import os
+from pathlib import Path
+import sqlite3
+import unicodedata
+from zoneinfo import ZoneInfo, available_timezones
+
+CATEGORIES = {
+    "Lu": ("Uppercase letter", "Letter"),
+    "Ll": ("Lowercase letter", "Letter"),
+    "Lt": ("Titlecase letter", "Letter"),
+    "Lm": ("Modifier letter", "Letter"),
+    "Lo": ("Other letter", "Letter"),
+    "Mn": ("Nonspacing mark", "Mark"),
+    "Mc": ("Spacing mark", "Mark"),
+    "Me": ("Enclosing mark", "Mark"),
+    "Nd": ("Decimal digit", "Number"),
+    "Nl": ("Letter number", "Number"),
+    "No": ("Other number", "Number"),
+    "Pc": ("Connector punctuation", "Punctuation"),
+    "Pd": ("Dash punctuation", "Punctuation"),
+    "Ps": ("Open punctuation", "Punctuation"),
+    "Pe": ("Close punctuation", "Punctuation"),
+    "Pi": ("Initial quote", "Punctuation"),
+    "Pf": ("Final quote", "Punctuation"),
+    "Po": ("Other punctuation", "Punctuation"),
+    "Sm": ("Math symbol", "Symbol"),
+    "Sc": ("Currency symbol", "Symbol"),
+    "Sk": ("Modifier symbol", "Symbol"),
+    "So": ("Other symbol", "Symbol"),
+    "Zs": ("Space separator", "Separator"),
+    "Zl": ("Line separator", "Separator"),
+    "Zp": ("Paragraph separator", "Separator"),
+    "Cc": ("Control", "Other"),
+    "Cf": ("Format", "Other"),
+    "Cs": ("Surrogate", "Other"),
+    "Co": ("Private use", "Other"),
+    "Cn": ("Unassigned", "Other"),
+}
+
+SCHEMA = """
+create table category (
+    code text primary key,
+    description text not null,
+    major_class text not null
+);
+
+create table character (
+    codepoint integer primary key,
+    symbol text not null,
+    name text not null,
+    category text not null references category(code),
+    script text not null,
+    width text not null,
+    numeric_value real
+);
+
+create table timezone (
+    name text primary key,
+    region text not null,
+    city text not null,
+    january_offset_minutes integer not null,
+    july_offset_minutes integer not null,
+    uses_dst integer not null
+);
+
+create index idx_character_category on character(category);
+create index idx_character_script on character(script);
+
+create view script_summary as
+    select script,
+           count(*) as characters,
+           min(codepoint) as first_codepoint,
+           max(codepoint) as last_codepoint
+    from character
+    group by script;
+
+create view numeric_character as
+    select codepoint, symbol, name, numeric_value
+    from character
+    where numeric_value is not null;
+"""
+
+# Basic Multilingual Plane, plus the main emoji blocks.
+CODEPOINT_RANGES = [range(0x20, 0x10000), range(0x1F300, 0x1FB00)]
+
+
+def character_rows():
+    for codepoints in CODEPOINT_RANGES:
+        for codepoint in codepoints:
+            symbol = chr(codepoint)
+            name = unicodedata.name(symbol, "")
+            if not name:
+                continue
+            yield (
+                codepoint,
+                symbol,
+                name,
+                unicodedata.category(symbol),
+                name.split(" ")[0],
+                unicodedata.east_asian_width(symbol),
+                unicodedata.numeric(symbol, None),
+            )
+
+
+def offset_minutes(zone, moment):
+    return int(moment.astimezone(zone).utcoffset().total_seconds() // 60)
+
+
+def timezone_rows():
+    january = datetime(2026, 1, 15, 12, tzinfo=timezone.utc)
+    july = datetime(2026, 7, 15, 12, tzinfo=timezone.utc)
+    for name in sorted(available_timezones()):
+        if "/" not in name or name.startswith(("Etc/", "posix/", "right/")):
+            continue
+        region, _, city = name.partition("/")
+        zone = ZoneInfo(name)
+        jan, jul = offset_minutes(zone, january), offset_minutes(zone, july)
+        yield name, region, city.replace("_", " "), jan, jul, int(jan != jul)
+
+
+def build(path):
+    connection = sqlite3.connect(path)
+    try:
+        connection.executescript(SCHEMA)
+        connection.executemany(
+            "insert into category values (?, ?, ?)",
+            [(code, *details) for code, details in CATEGORIES.items()],
+        )
+        connection.executemany(
+            "insert into character values (?, ?, ?, ?, ?, ?, ?)", character_rows())
+        connection.executemany(
+            "insert into timezone values (?, ?, ?, ?, ?, ?)", timezone_rows())
+        connection.commit()
+    finally:
+        connection.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Build the mystery database.")
+    parser.add_argument("database_file", nargs="?", default="mystery.db")
+    parser.add_argument("--replace", action="store_true",
+                        help="replace the file if it already exists")
+    args = parser.parse_args()
+    target = Path(args.database_file)
+    if target.exists():
+        if not args.replace:
+            raise SystemExit(f"{target} already exists. Use --replace to rebuild it.")
+        os.remove(target)
+    build(target)
+    print(f"Built {target} ({target.stat().st_size // 1024} KB, Unicode {unicodedata.unidata_version}).")
+</code></pre></section>
+<section class="source-file" id="file-6372656174655f64622e7368" aria-labelledby="title-file-6372656174655f64622e7368" hidden><header class="file-header"><h2 id="title-file-6372656174655f64622e7368">create_db.sh</h2></header><pre><code>#!/usr/bin/env bash
+# Build pets.db from create_db.sql. Refuses to touch an existing file.
+if [ -e pets.db ]; then
+    echo "pets.db already exists. Delete it (and pets.db-shm and pets.db-wal) to rebuild." &gt;&amp;2
+    exit 1
+fi
+sqlite3 pets.db &lt; create_db.sql
+</code></pre></section>
+<section class="source-file" id="file-6372656174655f64622e73716c" aria-labelledby="title-file-6372656174655f64622e73716c" hidden><header class="file-header"><h2 id="title-file-6372656174655f64622e73716c">create_db.sql</h2></header><pre><code>CREATE TABLE kind (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind_name TEXT NOT NULL,
+    food TEXT NOT NULL,
+    noise TEXT NOT NULL
+);
+
+CREATE TABLE pets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    age INTEGER NOT NULL CHECK (age &gt;= 0),
+    kind_id INTEGER NOT NULL,
+    owner TEXT NOT NULL,
+    FOREIGN KEY (kind_id) REFERENCES kind(id) 
+        ON DELETE RESTRICT 
+        ON UPDATE CASCADE
+);
+
+INSERT INTO kind (kind_name, food, noise) 
+VALUES ('Dog', 'Dog food', 'Bark');
+
+INSERT INTO kind (kind_name, food, noise) 
+VALUES ('Cat', 'Cat food', 'Meow');
+
+INSERT INTO kind (kind_name, food, noise) 
+VALUES ('Fish', 'Fish flakes', 'Blub');
+
+INSERT INTO pets (name, age, kind_id, owner)
+VALUES ('Suzy', 3, 1, 'Greg');  -- Dog
+
+INSERT INTO pets (name, age, kind_id, owner)
+VALUES ('Sandy', 2, 2, 'Steve');  -- Cat
+
+INSERT INTO pets (name, age, kind_id, owner)
+VALUES ('Dorothy', 1, 3, 'Elizabeth');  -- Fish
+
+INSERT INTO pets (name, age, kind_id, owner)
+VALUES ('Heidi', 4, 1, 'David');  -- Dog
+</code></pre></section>
+<section class="source-file" id="file-6578616d706c652e6462" aria-labelledby="title-file-6578616d706c652e6462" hidden><header class="file-header"><h2 id="title-file-6578616d706c652e6462">example.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-6578706c6f72655f6d7973746572792e7079" aria-labelledby="title-file-6578706c6f72655f6d7973746572792e7079" hidden><header class="file-header"><h2 id="title-file-6578706c6f72655f6d7973746572792e7079">explore_mystery.py</h2></header><pre><code>"""Explore an unfamiliar SQLite database with the dataset library.
+
+Usage: python3 explore_mystery.py [database_file]
+
+The file is opened read-only, so nothing here can change it.
+"""
+import csv
+import sys
+
+import dataset
+
+path = sys.argv[1] if len(sys.argv) &gt; 1 else "mystery.db"
+
+# mode=ro refuses every write. sqlite_wal_mode=False stops dataset from
+# switching the file to write-ahead logging when it connects.
+db = dataset.connect(f"sqlite:///file:{path}?mode=ro&amp;uri=true", sqlite_wal_mode=False)
+
+
+def show(title, rows):
+    print(f"\n== {title}")
+    for row in rows:
+        print(dict(row))
+
+
+print("tables:", db.tables)
+print("views:", db.views)
+
+for name in db.tables + db.views:
+    table = db[name]
+    print(f"\n{name}: {len(table)} rows")
+    print("  columns:", table.columns)
+
+show("A few characters", db["character"].find(_limit=3, order_by="codepoint"))
+show("Character categories, largest first", db.query(
+    "select category.description, count(*) as characters "
+    "from character join category on category.code = character.category "
+    "group by category.code order by characters desc limit 5"))
+show("Scripts with the most characters", db["script_summary"].find(order_by="-characters", _limit=5))
+print("\n== The largest numeric values")
+for row in db["numeric_character"].find(order_by="-numeric_value", _limit=3):
+    print(row["codepoint"], row["name"], row["numeric_value"])
+print("\n== Digits from other writing systems that mean 7")
+for row in db["numeric_character"].find(numeric_value=7, _limit=5):
+    print(row["name"])
+show("Time zones with an offset that is not a whole hour", db.query(
+    "select name, january_offset_minutes from timezone "
+    "where january_offset_minutes % 60 != 0 order by january_offset_minutes limit 5"))
+show("Time zones by whether they use daylight saving time", db.query(
+    "select region, sum(uses_dst) as with_dst, count(*) as zones "
+    "from timezone group by region order by zones desc limit 4"))
+
+with open("scripts.csv", "w", newline="") as output:
+    rows = list(db["script_summary"].find(order_by="-characters"))
+    writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+    writer.writeheader()
+    writer.writerows(rows)
+print(f"\nWrote scripts.csv with {len(rows)} rows.")
+</code></pre></section>
+<section class="source-file" id="file-6d7973746572792e6462" aria-labelledby="title-file-6d7973746572792e6462" hidden><header class="file-header"><h2 id="title-file-6d7973746572792e6462">mystery.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>dataset==2.0.0
+Flask==3.1.3
+tzdata==2026.4
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Create New Pet&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Create a New Pet&lt;/h1&gt;
+    &lt;form action="/create" method="POST"&gt;
+        &lt;p&gt;Name: &lt;input name="name" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Age: &lt;input name="age" type="number" min="0" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Owner: &lt;input name="owner" required /&gt;&lt;/p&gt;
+        &lt;p&gt;
+            Kind:
+            &lt;select name="kind_id" required&gt;
+                {% for kind in kinds %}
+                &lt;option value="{{ kind['id'] }}"&gt;{{ kind['kind_name'] }}&lt;/option&gt;
+                {% endfor %}
+            &lt;/select&gt;
+        &lt;/p&gt;
+        &lt;button type="submit"&gt;Create&lt;/button&gt;
+    &lt;/form&gt;
+    &lt;br&gt;
+    &lt;a href="/list"&gt;Back to Pet List&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6b696e645f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6b696e645f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6b696e645f6372656174652e68746d6c">templates/kind_create.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Create New Kind&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Create a New Kind&lt;/h1&gt;
+    &lt;form action="/kind/create" method="POST"&gt;
+        &lt;p&gt;Kind Name: &lt;input name="kind_name" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Food: &lt;input name="food" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Noise: &lt;input name="noise" required /&gt;&lt;/p&gt;
+        &lt;button type="submit"&gt;Create&lt;/button&gt;
+    &lt;/form&gt;
+    &lt;br&gt;
+    &lt;a href="/kind/list"&gt;Back to Kind List&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6b696e645f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6b696e645f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6b696e645f6c6973742e68746d6c">templates/kind_list.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;List of Animal Kinds&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;List of Animal Kinds&lt;/h1&gt;
+    
+    {% if error_message %}
+        &lt;p style="color: red;"&gt;{{ error_message }}&lt;/p&gt;
+    {% endif %}
+    
+    &lt;table border="1"&gt;
+        &lt;tr&gt;
+            &lt;th&gt;ID&lt;/th&gt;
+            &lt;th&gt;Kind&lt;/th&gt;
+            &lt;th&gt;Food&lt;/th&gt;
+            &lt;th&gt;Noise&lt;/th&gt;
+            &lt;th&gt;Actions&lt;/th&gt;
+        &lt;/tr&gt;
+        {% for kind in kinds %}
+        &lt;tr&gt;
+            &lt;td&gt;{{ kind['id'] }}&lt;/td&gt;
+            &lt;td&gt;{{ kind['kind_name'] }}&lt;/td&gt;
+            &lt;td&gt;{{ kind['food'] }}&lt;/td&gt;
+            &lt;td&gt;{{ kind['noise'] }}&lt;/td&gt;
+            &lt;td&gt;
+                &lt;a href="/kind/update/{{ kind['id'] }}"&gt;Update&lt;/a&gt; |
+                &lt;a href="/kind/delete/{{ kind['id'] }}"&gt;Delete&lt;/a&gt;
+            &lt;/td&gt;
+        &lt;/tr&gt;
+        {% endfor %}
+    &lt;/table&gt;
+    &lt;br&gt;
+    &lt;a href="/kind/create"&gt;Add New Kind&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6b696e645f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6b696e645f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6b696e645f7570646174652e68746d6c">templates/kind_update.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Update Kind&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Update Kind&lt;/h1&gt;
+    &lt;form action="/kind/update/{{ kind['id'] }}" method="POST"&gt;
+        &lt;p&gt;Kind Name: &lt;input name="kind_name" value="{{ kind['kind_name'] }}" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Food: &lt;input name="food" value="{{ kind['food'] }}" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Noise: &lt;input name="noise" value="{{ kind['noise'] }}" required /&gt;&lt;/p&gt;
+        &lt;button type="submit"&gt;Update&lt;/button&gt;
+    &lt;/form&gt;
+    &lt;br&gt;
+    &lt;a href="/kind/list"&gt;Back to Kind List&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;List of Pets&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;List of Pets&lt;/h1&gt;
+    &lt;table border="1"&gt;
+        &lt;tr&gt;
+            &lt;th&gt;ID&lt;/th&gt;
+            &lt;th&gt;Name&lt;/th&gt;
+            &lt;th&gt;Age&lt;/th&gt;
+            &lt;th&gt;Owner&lt;/th&gt;
+            &lt;th&gt;Kind&lt;/th&gt;
+            &lt;th&gt;Food&lt;/th&gt;
+            &lt;th&gt;Noise&lt;/th&gt;
+            &lt;th&gt;Actions&lt;/th&gt;
+        &lt;/tr&gt;
+        {% for pet in pets %}
+        &lt;tr&gt;
+            &lt;td&gt;{{ pet['id'] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet['name'] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet['age'] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet['owner'] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet['kind_name'] }}&lt;/td&gt; &lt;!-- Manually joined kind info --&gt;
+            &lt;td&gt;{{ pet['food'] }}&lt;/td&gt;
+            &lt;td&gt;{{ pet['noise'] }}&lt;/td&gt;
+            &lt;td&gt;
+                &lt;a href="/delete/{{ pet['id'] }}"&gt;Delete&lt;/a&gt; |
+                &lt;a href="/update/{{ pet['id'] }}"&gt;Update&lt;/a&gt;
+            &lt;/td&gt;
+        &lt;/tr&gt;
+        {% endfor %}
+    &lt;/table&gt;
+    &lt;br&gt;
+    &lt;a href="/create"&gt;Add New Pet&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</h2></header><pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Update Pet&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Update Pet&lt;/h1&gt;
+    &lt;form action="/update/{{ pet['id'] }}" method="POST"&gt;
+        &lt;p&gt;Name: &lt;input name="name" value="{{ pet['name'] }}" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Age: &lt;input name="age" type="number" min="0" value="{{ pet['age'] }}" required /&gt;&lt;/p&gt;
+        &lt;p&gt;Owner: &lt;input name="owner" value="{{ pet['owner'] }}" required /&gt;&lt;/p&gt;
+        &lt;p&gt;
+            Kind: 
+            &lt;select name="kind_id" required&gt;
+                {% for kind in kinds %}
+                &lt;option value="{{ kind['id'] }}" {% if pet['kind_id'] == kind['id'] %}selected{% endif %}&gt;{{ kind['kind_name'] }}&lt;/option&gt;
+                {% endfor %}
+            &lt;/select&gt;
+        &lt;/p&gt;
+        &lt;button type="submit"&gt;Update&lt;/button&gt;
+    &lt;/form&gt;
+    &lt;br&gt;
+    &lt;a href="/list"&gt;Back to Pet List&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-746573745f6170702e7079" aria-labelledby="title-file-746573745f6170702e7079" hidden><header class="file-header"><h2 id="title-file-746573745f6170702e7079">test_app.py</h2></header><pre><code>"""Run with python3 -m unittest -v. Every test uses a temporary database."""
+import os
+from pathlib import Path
+import sqlite3
+import tempfile
+import unittest
+
+HERE = Path(__file__).resolve().parent
+SCHEMA = (HERE / "create_db.sql").read_text()
+
+# app.py connects when it is imported, so point it at a scratch file first.
+SCRATCH = tempfile.TemporaryDirectory()
+os.environ["PETS_DATABASE_URL"] = f"sqlite:///{SCRATCH.name}/import.db"
+os.chdir(HERE)
+import app  # noqa: E402
+
+app.db.close()
+
+
+class PetsAppTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "pets.db"
+        with sqlite3.connect(self.path) as connection:
+            connection.executescript(SCHEMA)
+        import dataset
+        app.db = dataset.connect(
+            f"sqlite:///{self.path}", on_connect_statements=["PRAGMA foreign_keys=ON"])
+        self.addCleanup(app.db.close)
+        self.client = app.app.test_client()
+
+    def form(self, **changes):
+        values = {"name": "Casey", "age": "9", "owner": "Greg", "kind_id": "1"}
+        values.update(changes)
+        return values
+
+    def pets(self):
+        return list(app.db["pets"].all())
+
+    def test_list_shows_the_joined_kind_information(self):
+        page = self.client.get("/list").get_data(as_text=True)
+        self.assertIn("Suzy", page)
+        self.assertIn("Dog food", page)
+
+    def test_a_good_form_is_saved(self):
+        before = len(self.pets())
+        self.assertEqual(self.client.post("/create", data=self.form()).status_code, 302)
+        self.assertEqual(len(self.pets()), before + 1)
+
+    def test_the_route_rejects_bad_forms_with_a_message(self):
+        before = len(self.pets())
+        cases = [(dict(name=" "), "name is required"),
+                 (dict(age="-1"), "age must be a whole number"),
+                 (dict(age="abc"), "age must be a whole number"),
+                 (dict(age=""), "age must be a whole number"),
+                 (dict(owner=""), "owner is required"),
+                 (dict(kind_id="x"), "choose a kind")]
+        for changes, message in cases:
+            with self.subTest(changes=changes):
+                response = self.client.post("/create", data=self.form(**changes))
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(message, response.get_data(as_text=True))
+        self.assertEqual(len(self.pets()), before)
+
+    def test_the_database_refuses_an_unknown_kind_when_the_route_passes_it_on(self):
+        response = self.client.post("/create", data=self.form(kind_id="999"))
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("FOREIGN KEY", response.get_data(as_text=True))
+
+    def test_update_and_delete(self):
+        pet_id = app.db["pets"].find_one(name="Suzy")["id"]
+        self.assertEqual(self.client.post(f"/update/{pet_id}", data=self.form(name="Suzy Q")).status_code, 302)
+        self.assertEqual(app.db["pets"].find_one(id=pet_id)["name"], "Suzy Q")
+        self.assertEqual(self.client.post(f"/update/{pet_id}", data=self.form(age="-5")).status_code, 400)
+        self.assertEqual(app.db["pets"].find_one(id=pet_id)["age"], 9)
+        self.client.get(f"/delete/{pet_id}")
+        self.assertIsNone(app.db["pets"].find_one(id=pet_id))
+        self.assertEqual(self.client.get("/update/9999").status_code, 404)
+
+    def test_a_kind_that_pets_use_cannot_be_deleted(self):
+        response = self.client.get("/kind/delete/1")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("pets use it", response.get_data(as_text=True))
+        self.assertIsNotNone(app.db["kind"].find_one(id=1))
+        for pet in self.pets():
+            if pet["kind_id"] == 1:
+                app.db["pets"].delete(id=pet["id"])
+        self.assertEqual(self.client.get("/kind/delete/1").status_code, 302)
+
+    def test_kind_forms_need_every_field(self):
+        response = self.client.post("/kind/create", data={"kind_name": "Bird", "food": "", "noise": "Tweet"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.post(
+            "/kind/create", data={"kind_name": "Bird", "food": "Seed", "noise": "Tweet"}).status_code, 302)
+
+    def test_health_reports_foreign_keys(self):
+        self.assertEqual(self.client.get("/health").get_data(as_text=True), "ok")
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section>
+<section class="source-file" id="file-746573745f646174617365745f6578616d706c65732e7079" aria-labelledby="title-file-746573745f646174617365745f6578616d706c65732e7079" hidden><header class="file-header"><h2 id="title-file-746573745f646174617365745f6578616d706c65732e7079">test_dataset_examples.py</h2></header><pre><code>"""Run with python3 -m unittest -v. Checks the behavior the chapter describes.
+
+Every test uses temporary files.
+"""
+from datetime import date
+from pathlib import Path
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+
+import dataset
+from sqlalchemy.exc import IntegrityError, OperationalError
+
+import build_mystery
+
+HERE = Path(__file__).resolve().parent
+
+
+class DatasetBehaviorTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "scratch.db"
+        self.db = dataset.connect(f"sqlite:///{self.path}")
+        self.addCleanup(self.db.close)
+
+    def columns(self, table):
+        with sqlite3.connect(self.path) as connection:
+            return {row[1]: row[2] for row in connection.execute(f"pragma table_info({table})")}
+
+    def test_a_table_creates_itself_with_an_integer_key(self):
+        self.db["pet"].insert({"name": "Dorothy", "age": 9})
+        self.assertEqual(self.columns("pet"), {"id": "INTEGER", "name": "TEXT", "age": "BIGINT"})
+
+    def test_a_new_key_adds_a_column(self):
+        pets = self.db["pet"]
+        pets.insert({"name": "Dorothy"})
+        pets.insert({"name": "Heidi", "food": "tuna"})
+        self.assertEqual(pets.columns, ["id", "name", "food"])
+        self.assertIsNone(pets.find_one(name="Dorothy")["food"])
+
+    def test_a_typo_in_a_key_creates_a_column_too(self):
+        pets = self.db["pet"]
+        pets.insert({"name": "Dorothy", "age": 9})
+        pets.insert({"name": "Heidi", "aeg": 15})
+        self.assertIn("aeg", pets.columns)
+
+    def test_types_come_from_the_first_value(self):
+        self.db["sample"].insert({
+            "a_int": 1, "a_float": 2.5, "a_bool": True, "a_date": date(2026, 9, 1),
+            "a_dict": {"x": 1}, "a_text": "hi"})
+        self.assertEqual(self.columns("sample"), {
+            "id": "INTEGER", "a_int": "BIGINT", "a_float": "FLOAT", "a_bool": "BOOLEAN",
+            "a_date": "DATE", "a_dict": "JSON", "a_text": "TEXT"})
+
+    def test_ensure_schema_false_stops_new_tables_and_drops_unknown_keys(self):
+        self.db["pet"].insert({"name": "A"})
+        self.db.close()
+        strict = dataset.connect(f"sqlite:///{self.path}", ensure_schema=False)
+        self.addCleanup(strict.close)
+        strict["pet"].insert({"name": "B", "aeg": 15})
+        self.assertEqual(strict["pet"].columns, ["id", "name"])
+        self.assertEqual(len(strict["pet"]), 2)
+        with self.assertRaises(dataset.util.DatasetError):
+            strict["newtable"].insert({"name": "C"})
+
+    def test_no_alembic_bookkeeping_table_is_created(self):
+        self.db["pet"].insert({"name": "Dorothy"})
+        self.db["pet"].insert({"name": "Heidi", "food": "tuna"})
+        self.assertEqual(self.db.tables, ["pet"])
+
+    def test_write_methods_and_their_return_values(self):
+        pets = self.db["pet"]
+        self.assertEqual(pets.insert({"name": "A", "age": 1}), 1)
+        pets.insert_many([{"name": "B", "age": 2}, {"name": "C", "age": 3}])
+        self.assertEqual(pets.update({"name": "B", "age": 22}, ["name"]), 1)
+        pets.upsert({"name": "A", "age": 9}, ["name"])
+        pets.upsert({"name": "D", "age": 4}, ["name"])
+        self.assertEqual(len(pets), 4)
+        self.assertEqual(pets.find_one(name="A")["age"], 9)
+        self.assertTrue(pets.delete(name="C"))
+        self.assertFalse(pets.delete(name="nobody"))
+        self.assertEqual(pets.count(age={"&gt;=": 4}), 3)
+
+    def test_upsert_return_values_and_upsert_many_runs_row_by_row(self):
+        pets = self.db["pets"]
+        pets.insert({"name": "Buddy", "age": 6})
+        self.assertIs(pets.upsert({"name": "Buddy", "age": 7}, ["name"]), True)
+        new_id = pets.upsert({"name": "Rex", "age": 2}, ["name"])
+        self.assertIsNot(new_id, True)
+        self.assertEqual(new_id, pets.find_one(name="Rex")["id"])
+        pets.upsert_many([{"name": "Rex", "age": 3}, {"name": "Fido", "age": 1}], ["name"])
+        self.assertEqual(pets.find_one(name="Rex")["age"], 3)
+        self.assertEqual(pets.count(), 3)
+
+    def test_find_options(self):
+        pets = self.db["pet"]
+        pets.insert_many([{"name": n, "age": a} for n, a in [("A", 1), ("B", 5), ("C", 3)]])
+        found = pets.find(age={"&gt;=": 3}, order_by="-age", _limit=1)
+        self.assertEqual([p["name"] for p in found], ["B"])
+        self.assertEqual([p["name"] for p in pets.find(name=["A", "C"], order_by="name")], ["A", "C"])
+        self.assertEqual(sorted(p["age"] for p in pets.distinct("age")), [1, 3, 5])
+
+    def test_rows_are_dictionaries(self):
+        self.db["pet"].insert({"name": "A"})
+        self.assertIsInstance(self.db["pet"].find_one(name="A"), dict)
+
+    def test_a_transaction_rolls_back_as_a_group(self):
+        self.db["pet"].insert({"name": "Existing"})
+        with self.assertRaises(RuntimeError):
+            with dataset.connect(f"sqlite:///{self.path}") as tx:
+                tx["pet"].insert({"name": "Inside"})
+                raise RuntimeError("stop")
+        self.assertIsNone(self.db["pet"].find_one(name="Inside"))
+
+    def test_rules_written_in_sql_still_apply_but_foreign_keys_need_asking(self):
+        with sqlite3.connect(self.path) as connection:
+            connection.executescript("""
+                create table kind (id integer primary key, name text not null);
+                create table pets (id integer primary key, name text not null,
+                    age integer check (age &gt;= 0), kind_id integer references kind(id));
+                insert into kind values (1, 'Dog');
+            """)
+        pets = self.db["pets"]
+        with self.assertRaises(IntegrityError):
+            pets.insert({"name": None, "age": 1, "kind_id": 1})
+        with self.assertRaises(IntegrityError):
+            pets.insert({"name": "x", "age": -1, "kind_id": 1})
+        pets.insert({"name": "orphan", "age": 1, "kind_id": 999})
+        self.assertIsNotNone(pets.find_one(name="orphan"))
+
+        strict = dataset.connect(
+            f"sqlite:///{self.path}", on_connect_statements=["PRAGMA foreign_keys=ON"])
+        self.addCleanup(strict.close)
+        with self.assertRaises(IntegrityError):
+            strict["pets"].insert({"name": "orphan2", "age": 1, "kind_id": 999})
+
+    def test_connecting_switches_sqlite_to_write_ahead_logging(self):
+        self.db["pet"].insert({"name": "A"})
+        with sqlite3.connect(self.path) as connection:
+            self.assertEqual(connection.execute("pragma journal_mode").fetchone()[0], "wal")
+
+
+class MysteryDatabaseTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.path = Path(cls.temp.name) / "mystery.db"
+        build_mystery.build(cls.path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp.cleanup()
+
+    def open(self):
+        db = dataset.connect(f"sqlite:///file:{self.path}?mode=ro&amp;uri=true", sqlite_wal_mode=False)
+        self.addCleanup(db.close)
+        return db
+
+    def test_the_builder_will_not_overwrite_a_file(self):
+        result = subprocess.run(
+            [sys.executable, str(HERE / "build_mystery.py"), str(self.path)],
+            capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--replace", result.stderr)
+
+    def test_exploring_tables_views_and_columns(self):
+        db = self.open()
+        self.assertEqual(db.tables, ["category", "character", "timezone"])
+        self.assertEqual(db.views, ["numeric_character", "script_summary"])
+        self.assertEqual(db["timezone"].columns, [
+            "name", "region", "city", "january_offset_minutes", "july_offset_minutes", "uses_dst"])
+        self.assertGreater(len(db["character"]), 50000)
+
+    def test_the_sample_questions_have_answers(self):
+        db = self.open()
+        top = next(iter(db["script_summary"].find(order_by="-characters")))
+        self.assertEqual(top["script"], "CJK")
+        sevens = [row["name"] for row in db["numeric_character"].find(numeric_value=7)]
+        self.assertIn("DEVANAGARI DIGIT SEVEN", sevens)
+        odd = {row["name"] for row in db.query(
+            "select name from timezone where january_offset_minutes % 60 != 0")}
+        self.assertIn("Asia/Kabul", odd)
+
+    def test_a_read_only_connection_cannot_write_and_leaves_no_extra_files(self):
+        db = self.open()
+        with self.assertRaises(OperationalError):
+            db["character"].insert({"codepoint": 1, "symbol": "x", "name": "n",
+                                    "category": "Cc", "script": "n", "width": "N"})
+        self.assertEqual(sorted(p.name for p in self.path.parent.iterdir()), ["mystery.db"])
+
+    def test_every_character_category_has_a_description(self):
+        db = self.open()
+        missing = list(db.query(
+            "select distinct category from character where category not in (select code from category)"))
+        self.assertEqual(missing, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-08-dataset/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

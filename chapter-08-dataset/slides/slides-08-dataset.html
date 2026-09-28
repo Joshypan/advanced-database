@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 8: Dataset</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="dataset">Dataset</h1>
+<p>Dictionaries in, dictionaries out</p>
+<hr style="border:0;border-top:1px solid #c3cbd0;margin:32px 0 18px">
+<p class="slide-author" style="font-size:22px">
+Gregory S. DeLozier, PhD
+</p>
+</section>
+<section><h2 id="two-answers-to-one-question">Two Answers to One Question</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Peewee</th>
+<th>Dataset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You start with</td>
+<td>Model classes</td>
+<td>A database, or a dictionary</td>
+</tr>
+<tr>
+<td>Rows are</td>
+<td>Objects</td>
+<td>Dictionaries</td>
+</tr>
+<tr>
+<td>The schema comes from</td>
+<td>The models</td>
+<td>The database, or the first rows</td>
+</tr>
+<tr>
+<td>Suits</td>
+<td>Applications with rules</td>
+<td>Exploration and scratch work</td>
+</tr>
+</tbody>
+</table>
+<p>How much structure should the code impose?</p>
+</section>
+<section><h2 id="installing-dataset">Installing Dataset</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> pip show dataset</span></code></pre></div>
+<pre class="text"><code>dataset==2.0.0
+Flask==3.1.3
+tzdata==2026.4</code></pre>
+<p>Python <strong>3.10</strong> or newer.</p>
+</section>
+<section><h2 id="a-database-you-did-not-design">A Database You Did Not
+Design</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dataset</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> dataset.<span class="ex">connect</span>(<span class="st">&quot;sqlite:///pets.db&quot;</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(db.tables)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(db[<span class="st">&quot;pets&quot;</span>].columns)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(db[<span class="st">&quot;pets&quot;</span>]))</span></code></pre></div>
+<pre class="text"><code>[&#39;kind&#39;, &#39;pets&#39;]
+[&#39;id&#39;, &#39;name&#39;, &#39;age&#39;, &#39;kind_id&#39;, &#39;owner&#39;]
+4</code></pre>
+<p>No model classes.</p>
+</section>
+<section><h2 id="rows-are-dictionaries">Rows Are Dictionaries</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>suzy <span class="op">=</span> db[<span class="st">&quot;pets&quot;</span>].find_one(name<span class="op">=</span><span class="st">&quot;Suzy&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(suzy[<span class="st">&quot;age&quot;</span>])</span></code></pre></div>
+<pre class="text"><code>OrderedDict({&#39;id&#39;: 1, &#39;name&#39;: &#39;Suzy&#39;, &#39;age&#39;: 3,
+             &#39;kind_id&#39;: 1, &#39;owner&#39;: &#39;Greg&#39;})</code></pre>
+<p><code>dict(row)</code>, <code>row.get("age")</code>, JSON.</p>
+</section>
+<section><h2 id="asking-questions">Asking Questions</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pets.find(kind_id<span class="op">=</span>[<span class="dv">1</span>, <span class="dv">3</span>])</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pets.find(age<span class="op">=</span>{<span class="st">&quot;&gt;=&quot;</span>: <span class="dv">3</span>}, order_by<span class="op">=</span><span class="st">&quot;-age&quot;</span>, _limit<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>pets.count(kind_id<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>pets.distinct(<span class="st">&quot;owner&quot;</span>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Operator</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&gt;</code> <code>&gt;=</code> <code>&lt;</code>
+<code>&lt;=</code> <code>!=</code></td>
+<td>Comparison</td>
+</tr>
+<tr>
+<td><code>in</code> <code>notin</code> <code>between</code></td>
+<td>Sets and ranges</td>
+</tr>
+<tr>
+<td><code>like</code> <code>ilike</code> <code>startswith</code>
+<code>endswith</code></td>
+<td>Text</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="when-the-api-runs-out-write-sql">When the API Runs Out, Write
+SQL</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row <span class="kw">in</span> db.query(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;select kind_id, count(*) as n &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;from pets group by kind_id&quot;</span>):</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="bu">dict</span>(row))</span></code></pre></div>
+<pre class="text"><code>{&#39;kind_id&#39;: 1, &#39;n&#39;: 2}
+{&#39;kind_id&#39;: 2, &#39;n&#39;: 1}
+{&#39;kind_id&#39;: 3, &#39;n&#39;: 1}</code></pre>
+<p><strong>Postponed, not hidden.</strong></p>
+</section>
+<section><h2 id="changing-data">Changing Data</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pets.insert({<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Buddy&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="dv">5</span>, ...})</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pets.insert_many([...])</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>pets.update({<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Buddy&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="dv">6</span>}, [<span class="st">&quot;name&quot;</span>])</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>pets.upsert({<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Buddy&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="dv">7</span>}, [<span class="st">&quot;name&quot;</span>])</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>pets.delete(name<span class="op">=</span><span class="st">&quot;Tom&quot;</span>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insert</code></td>
+<td>New row identifier</td>
+</tr>
+<tr>
+<td><code>update</code></td>
+<td>Rows changed</td>
+</tr>
+<tr>
+<td><code>upsert</code></td>
+<td><code>True</code> when updated; new identifier when inserted</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td><code>True</code> if a row went</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="a-transaction-is-a-with-block">A Transaction Is a
+<code>with</code> Block</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> dataset.<span class="ex">connect</span>(<span class="st">&quot;sqlite:///pets.db&quot;</span>) <span class="im">as</span> tx:</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    tx[<span class="st">&quot;pets&quot;</span>].insert({<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Inside&quot;</span>, ...})</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    tx[<span class="st">&quot;pets&quot;</span>].insert({<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Bad&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="op">-</span><span class="dv">1</span>, ...})</span></code></pre></div>
+<p>The second insert fails: <strong>neither row is stored.</strong></p>
+</section>
+<section><h2 id="tables-that-make-themselves">Tables That Make Themselves</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>scratch <span class="op">=</span> db[<span class="st">&quot;scratch&quot;</span>]</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>scratch.insert({<span class="st">&quot;a&quot;</span>: <span class="dv">1</span>, <span class="st">&quot;b&quot;</span>: <span class="fl">2.5</span>, <span class="st">&quot;c&quot;</span>: <span class="va">True</span>, <span class="st">&quot;d&quot;</span>: <span class="st">&quot;hi&quot;</span>})</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Python value</th>
+<th>Column type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int</code></td>
+<td><code>BIGINT</code></td>
+</tr>
+<tr>
+<td><code>float</code></td>
+<td><code>FLOAT</code></td>
+</tr>
+<tr>
+<td><code>bool</code></td>
+<td><code>BOOLEAN</code></td>
+</tr>
+<tr>
+<td><code>date</code>, <code>datetime</code></td>
+<td><code>DATE</code>, timestamp</td>
+</tr>
+<tr>
+<td><code>dict</code></td>
+<td><code>JSON</code></td>
+</tr>
+<tr>
+<td>anything else</td>
+<td><code>TEXT</code></td>
+</tr>
+</tbody>
+</table>
+<p>Plus an integer <code>id</code>.</p>
+</section>
+<section><h2 id="a-new-key-adds-a-column">A New Key Adds a Column</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pets.columns)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pets.insert({..., <span class="st">&quot;breed&quot;</span>: <span class="st">&quot;Beagle&quot;</span>})</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pets.columns)</span></code></pre></div>
+<pre class="text"><code>[&#39;id&#39;, &#39;name&#39;, &#39;age&#39;, &#39;kind_id&#39;, &#39;owner&#39;]
+[&#39;id&#39;, &#39;name&#39;, &#39;age&#39;, &#39;kind_id&#39;, &#39;owner&#39;, &#39;breed&#39;]</code></pre>
+<p>Old rows: <code>breed</code> is <code>NULL</code>. A typo such as
+<code>aeg</code> becomes a column too.</p>
+</section>
+<section><h2 id="what-alembic-does">What Alembic Does</h2>
+<p><img src="slide-assets/diagram-12.svg" alt="What Alembic Does" /></p>
+<table>
+<thead>
+<tr>
+<th>Full Alembic</th>
+<th>What dataset uses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Versioned migration scripts</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>alembic_version</code> table</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Upgrade and downgrade</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Operation that adds a column</td>
+<td><strong>Yes</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="what-dataset-leaves-to-you">What Dataset Leaves to You</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Who supplies it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NOT NULL</code>, <code>CHECK</code></td>
+<td>The SQL script; SQLite enforces</td>
+</tr>
+<tr>
+<td>Rules never written</td>
+<td>Nobody</td>
+</tr>
+<tr>
+<td>Foreign keys</td>
+<td>You must turn them on</td>
+</tr>
+<tr>
+<td>Joins</td>
+<td>You, in SQL</td>
+</tr>
+<tr>
+<td>Write-ahead logging</td>
+<td>Dataset, by default</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="foreign-keys-are-off-until-asked">Foreign Keys Are Off Until
+Asked</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> dataset.<span class="ex">connect</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;sqlite:///pets.db&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    on_connect_statements<span class="op">=</span>[<span class="st">&quot;PRAGMA foreign_keys=ON&quot;</span>])</span></code></pre></div>
+<p>Without it: a pet with <code>kind_id</code> 999 goes in, and a kind
+in use can be deleted.</p>
+</section>
+<section><h2 id="the-pets-application-with-dataset">The Pets Application with
+Dataset</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser</td>
+<td><code>required</code>, <code>type="number" min="0"</code></td>
+</tr>
+<tr>
+<td>Route</td>
+<td><code>check_pet_form</code></td>
+</tr>
+<tr>
+<td>Table</td>
+<td><code>NOT NULL</code>, <code>CHECK</code>, foreign key in
+<code>create_db.sql</code></td>
+</tr>
+</tbody>
+</table>
+<p>One join query lists the pets. Kind delete: the database refuses; the
+route reports it.</p>
+</section>
+<section><h2 id="exploring-mystery.db">Exploring mystery.db</h2>
+<ol type="1">
+<li>Tables and views</li>
+<li>Columns and row counts</li>
+<li>A few rows</li>
+<li>A join to test a guess</li>
+<li>The views</li>
+<li>Interesting values</li>
+<li>The unrelated table</li>
+<li>Keep what you found</li>
+</ol>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> dataset.<span class="ex">connect</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;sqlite:///file:mystery.db?mode=ro&amp;uri=true&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    sqlite_wal_mode<span class="op">=</span><span class="va">False</span>)</span></code></pre></div>
+</section>
+<section><h2 id="read-only-means-read-only">Read-Only Means Read-Only</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode=ro</code></td>
+<td>Every write refused</td>
+</tr>
+<tr>
+<td><code>sqlite_wal_mode=False</code></td>
+<td>No switch to write-ahead logging</td>
+</tr>
+</tbody>
+</table>
+<p>A file already switched stays switched. Explore a
+<strong>copy</strong>.</p>
+</section>
+<section><h2 id="what-did-we-find">What Did We Find?</h2>
+<pre class="text"><code>{&#39;script&#39;: &#39;CJK&#39;, &#39;characters&#39;: 28209, ...}
+{&#39;script&#39;: &#39;HANGUL&#39;, &#39;characters&#39;: 11625, ...}</code></pre>
+<p>But the first character row said <code>'script': 'SPACE'</code>.</p>
+<p><strong>The <code>script</code> column is the first word of the
+name.</strong></p>
+</section>
+<section><h2 id="choosing-a-tool">Choosing a Tool</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Direct SQL</th>
+<th>Peewee</th>
+<th>Dataset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You write</td>
+<td>SQL</td>
+<td>Models</td>
+<td>Dictionaries</td>
+</tr>
+<tr>
+<td>Rules declared in</td>
+<td>SQL</td>
+<td>Models</td>
+<td>SQL, outside</td>
+</tr>
+<tr>
+<td>Changing a table</td>
+<td>By hand</td>
+<td>Manual or tool</td>
+<td>Automatic, unreviewed</td>
+</tr>
+<tr>
+<td>Suits</td>
+<td>Full control</td>
+<td>Applications</td>
+<td>Exploration</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="exercise-explore-something-else">Exercise: Explore Something
+Else</h2>
+<p>Pick an SQLite database you did not create.</p>
+<p>Write down each guess before you test it.</p>
+<p>Which guesses were wrong?</p>
+<p>Save one result to a CSV file.</p>
+</section>
+<section><h2 id="where-the-rules-live">Where the Rules Live</h2>
+<p>Dictionaries: <strong>explore quickly.</strong></p>
+<p>SQL: <strong>declare the rules.</strong></p>
+<p>Foreign keys: <strong>turn them on.</strong></p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

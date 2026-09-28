@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 7: ORM with Constraints</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="orm-with-constraints">ORM with Constraints</h1>
+<p>Pets, owners, and rules, written as Peewee models</p>
+<hr style="border:0;border-top:1px solid #c3cbd0;margin:32px 0 18px">
+<p class="slide-author" style="font-size:22px">
+Gregory S. DeLozier, PhD
+</p>
+</section>
+<section><h2 id="same-routes-three-layers">Same Routes, Three Layers</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser</td>
+<td><strong>Fast</strong> feedback</td>
+</tr>
+<tr>
+<td>Web application</td>
+<td><strong>Reliable</strong> movement of data</td>
+</tr>
+<tr>
+<td>Database layer</td>
+<td>Data <strong>follows the rules</strong>: Python checks, then the
+table</td>
+</tr>
+</tbody>
+</table>
+<p>Handle the error at every layer we can.</p>
+</section>
+<section><h2 id="start-with-a-current-database">Start with a Current
+Database</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> upgrade_database.py</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>The file</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing</td>
+<td>Empty current tables</td>
+</tr>
+<tr>
+<td>Has the rules the check looks for</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>Older layout</td>
+<td>New tables, data reloaded, <strong>original kept</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="running-the-example">Running the Example</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> upgrade_database.py</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> unittest <span class="at">-v</span></span></code></pre></div>
+<p><code>http://127.0.0.1:5000/list</code></p>
+<p>Create an owner first.</p>
+</section>
+<section><h2 id="rules-in-the-model">Rules in the Model</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Pet(BaseModel):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> TextField(null<span class="op">=</span><span class="va">False</span>, constraints<span class="op">=</span>[</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        Check(<span class="st">&quot;length(trim(name)) &gt; 0&quot;</span>)])</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">type</span> <span class="op">=</span> TextField(null<span class="op">=</span><span class="va">False</span>, constraints<span class="op">=</span>[</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        Check(<span class="st">&quot;length(trim(type)) &gt; 0&quot;</span>)])</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    age <span class="op">=</span> IntegerField(default<span class="op">=</span><span class="dv">0</span>, constraints<span class="op">=</span>[</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        Check(<span class="st">&quot;age &gt;= 0&quot;</span>)])</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    owner <span class="op">=</span> ForeignKeyField(Owner, backref<span class="op">=</span><span class="st">&quot;pets&quot;</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        null<span class="op">=</span><span class="va">False</span>, on_delete<span class="op">=</span><span class="st">&quot;RESTRICT&quot;</span>)</span></code></pre></div>
+</section>
+<section><h2 id="the-table-peewee-writes">The Table Peewee Writes</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> <span class="ot">&quot;pet&quot;</span> (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">&quot;id&quot;</span> <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">&quot;name&quot;</span> TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (<span class="fu">length</span>(<span class="fu">trim</span>(name)) <span class="op">&gt;</span> <span class="dv">0</span>),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="ot">&quot;type&quot;</span> TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (<span class="fu">length</span>(<span class="fu">trim</span>(<span class="kw">type</span>)) <span class="op">&gt;</span> <span class="dv">0</span>),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="ot">&quot;age&quot;</span> <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (age <span class="op">&gt;=</span> <span class="dv">0</span>),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="ot">&quot;owner_id&quot;</span> <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (<span class="ot">&quot;owner_id&quot;</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">REFERENCES</span> <span class="ot">&quot;owner&quot;</span> (<span class="ot">&quot;id&quot;</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Read it with <code>sqlite3 pets.db .schema</code>.</p>
+</section>
+<section><h2 id="what-the-upgrade-reports">What the Upgrade Reports</h2>
+<pre class="text"><code>loaded 1 owners and 2 pets
+2 pets had no owner: now &#39;Unassigned&#39;
+not carried over: food
+skipped pet 4: CHECK constraint failed: age &gt;= 0
+original file kept as pets.db.before-upgrade</code></pre>
+<p>Rows that break a rule are <strong>listed, not hidden</strong>.</p>
+</section>
+<section><h2 id="a-foreign-key-is-a-field">A Foreign Key Is a Field</h2>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Owner</code></td>
+<td>Which table</td>
+</tr>
+<tr>
+<td><code>null=False</code></td>
+<td>Every pet has an owner</td>
+</tr>
+<tr>
+<td><code>on_delete="RESTRICT"</code></td>
+<td>Owner with pets cannot go</td>
+</tr>
+<tr>
+<td><code>backref="pets"</code></td>
+<td><code>owner.pets</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>pet.owner_id</code> is an integer. <code>pet.owner</code> is an
+<code>Owner</code>.</p>
+</section>
+<section><h2 id="foreign-keys-are-off-until-asked">Foreign Keys Are Off Until
+Asked</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db.init(database_file,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>        pragmas<span class="op">=</span>{<span class="st">&quot;foreign_keys&quot;</span>: <span class="dv">1</span>})</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>...</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>fk <span class="op">=</span> db.execute_sql(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;PRAGMA foreign_keys&quot;</span>).fetchone()[<span class="dv">0</span>]</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> fk <span class="op">==</span> <span class="dv">1</span></span></code></pre></div>
+<p><strong>The setting belongs to the connection.</strong></p>
+</section>
+<section><h2 id="one-bad-request-four-checks">One Bad Request, Four Checks</h2>
+<p><img src="slide-assets/diagram-10.svg"
+alt="One Bad Request, Four Checks" /></p>
+</section>
+<section><h2 id="who-catches-what">Who Catches What</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>Request</th>
+<th>Browser</th>
+<th>Route</th>
+<th><code>database.py</code></th>
+<th>Table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blank name</td>
+<td><code>required</code></td>
+<td>yes</td>
+<td><code>ValueError</code></td>
+<td><code>CHECK</code></td>
+</tr>
+<tr>
+<td>Age <code>-1</code></td>
+<td><code>min="0"</code></td>
+<td>yes</td>
+<td><code>ValueError</code></td>
+<td><code>CHECK</code></td>
+</tr>
+<tr>
+<td>Age <code>abc</code></td>
+<td><code>number</code></td>
+<td>yes</td>
+<td><code>ValueError</code></td>
+<td><strong>not stopped</strong></td>
+</tr>
+<tr>
+<td>No owner</td>
+<td><code>required</code></td>
+<td>yes</td>
+<td><code>ValueError</code></td>
+<td><code>NOT NULL</code></td>
+</tr>
+<tr>
+<td>Owner <code>999999</code></td>
+<td>dropdown</td>
+<td>passes it on</td>
+<td>passes it on</td>
+<td><strong><code>FOREIGN KEY</code></strong></td>
+</tr>
+<tr>
+<td>Delete owner with pets</td>
+<td>none</td>
+<td>reports</td>
+<td>passes it on</td>
+<td><strong><code>RESTRICT</code></strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="a-rule-changed">A Rule Changed</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>age <span class="op">=</span> <span class="bu">int</span>(value)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> age <span class="op">&lt;</span> <span class="dv">0</span>:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">&quot;Age must be non-negative.&quot;</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> age</span></code></pre></div>
+<p>Blank age is still <code>0</code>. Bad input is no longer turned into
+<code>0</code>.</p>
+</section>
+<section><h2 id="errors-arrive-as-peewee-exceptions">Errors Arrive as Peewee
+Exceptions</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> peewee <span class="im">import</span> IntegrityError, OperationalError</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> IntegrityError <span class="im">as</span> e:</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> error_page(<span class="st">&quot;Error: Cannot delete this &quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;owner because they have pets.&quot;</span>, <span class="dv">400</span>)</span></code></pre></div>
+<p>Routes now depend on Peewee. Is that acceptable?</p>
+</section>
+<section><h2 id="join-or-pay-n1">Join, or Pay N+1</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Pet.select(Pet, Owner).join(Owner) <span class="op">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>   .order_by(Pet.name, Pet.<span class="bu">id</span>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Three pets</th>
+<th>Queries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No join, <code>pet.owner.name</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>With join</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="reassign-then-delete">Reassign, Then Delete</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pet.owner <span class="op">=</span> <span class="bu">int</span>(owner_id)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pet.save()</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delete Alex, pets remain</td>
+<td>Rejected</td>
+</tr>
+<tr>
+<td>Move one pet to Sam</td>
+<td>Alex still has one</td>
+</tr>
+<tr>
+<td>Move the other</td>
+<td>Alex has none</td>
+</tr>
+<tr>
+<td>Delete Alex</td>
+<td>Succeeds</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="group-writes-around-a-failure">Group Writes Around a
+Failure</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> database.db.atomic():</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    database.create_pet(first_pet)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    database.create_pet(pet_with_bad_owner)</span></code></pre></div>
+<p>Second insert fails: <strong>neither pet is stored.</strong></p>
+</section>
+<section><h2 id="test-below-the-layer-above">Test Below the Layer Above</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> <span class="va">self</span>.assertRaises(IntegrityError):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    Pet.create(owner<span class="op">=</span>owner_id, name<span class="op">=</span><span class="st">&quot;   &quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>               <span class="bu">type</span><span class="op">=</span><span class="st">&quot;dog&quot;</span>, age<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div>
+<p>Skip the helper. Does the table still refuse?</p>
+</section>
+<section><h2 id="exercise-when-is-an-owner-a-duplicate">Exercise: When Is an
+Owner a Duplicate?</h2>
+<p>Same name, different cities?</p>
+<p>Same name, same city?</p>
+<p>Same name, no city?</p>
+<p><strong>Which layers should know?</strong></p>
+</section>
+<section><h2 id="where-the-rules-live">Where the Rules Live</h2>
+<p>Browser: <strong>tell them now.</strong></p>
+<p>Route: <strong>explain the failure.</strong></p>
+<p>Database layer: <strong>never store a broken row.</strong></p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

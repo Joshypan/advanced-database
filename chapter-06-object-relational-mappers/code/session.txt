@@ -1,0 +1,101 @@
+Script started on 2026-02-23 22:59:37+00:00
+
+$ pip install peewee
+
+Collecting peewee
+Downloading peewee-4.0.0-py3-none-any.whl.metadata (8.1 kB)
+Downloading peewee-4.0.0-py3-none-any.whl (139 kB)
+Installing collected packages: peewee
+Successfully installed peewee-4.0.0
+
+[notice] A new release of pip is available: 25.3 -> 26.0.1
+[notice] To update, run: python3 -m pip install --upgrade pip
+
+$ python3 -m pip install --upgrade pip
+
+Requirement already satisfied: pip (25.3)
+Collecting pip
+Downloading pip-26.0.1-py3-none-any.whl.metadata (4.7 kB)
+Downloading pip-26.0.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+Attempting uninstall: pip 25.3
+Successfully uninstalled pip-25.3
+Successfully installed pip-26.0.1
+
+$ python
+
+Python 3.12.1 on linux
+
+>>> from peewee import *
+>>> db = SqliteDatabase("people.db")
+
+>>> class Person(Model):
+...     name = CharField()
+...     birthday = DateField()
+...     class Meta:
+...         database = db
+
+>>> class Pet(Model):
+...     owner = ForeignKeyField(Person, backref="pets")
+...     name = CharField()
+...     animal_type = CharField()
+...     class Meta:
+...         database = db
+
+>>> db.connect()
+True
+
+>>> db.create_tables([Person, Pet])
+
+>>> from datetime import date
+
+>>> uncle_bob = Person(name="Bob", birthday=date(1960, 1, 15))
+>>> uncle_bob.save()
+1
+
+>>> grandma = Person.create(name="Grandma", birthday=date(1935, 3, 1))
+>>> herb = Person.create(name="Herb", birthday=date(1950, 5, 5))
+
+>>> bob_kitty = Pet.create(owner=uncle_bob, name="Kitty", animal_type="cat")
+>>> herb_fido = Pet.create(owner=herb, name="Fido", animal_type="dog")
+>>> herb_mittens = Pet.create(owner=herb, name="Mittens", animal_type="cat")
+>>> herb_mittens_jr = Pet.create(owner=herb, name="Mittens Jr", animal_type="cat")
+
+>>> herb_mittens.delete_instance()
+1
+
+>>> grandma = Person.get(Person.name == "Grandma L.")
+Traceback (most recent call last):
+PersonDoesNotExist: <Model: Person> instance matching query does not exist
+
+>>> grandma = Person.get(Person.name == "Grandma")
+
+>>> grandma.name
+'Grandma'
+
+>>> grandma.birthday
+datetime.date(1935, 3, 1)
+
+>>> for person in Person.select():
+...     print(person.name)
+...
+Bob
+Grandma
+Herb
+
+>>> people = Person.select()
+>>> list(people)
+[<Person: 1>, <Person: 2>, <Person: 3>]
+
+>>> [p.name for p in people]
+['Bob', 'Grandma', 'Herb']
+
+>>> query = Pet.select().where(Pet.animal_type == "cat")
+>>> for pet in query:
+...     print(pet.name, pet.owner.name)
+...
+Kitty Bob
+Mittens Jr Herb
+
+>>> [(pet.name, pet.owner.name) for pet in Pet.select().where(Pet.animal_type == "cat")]
+[('Kitty', 'Bob'), ('Mittens Jr', 'Herb')]

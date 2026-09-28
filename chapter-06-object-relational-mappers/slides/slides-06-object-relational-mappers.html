@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 6: Object-Relational Mappers</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="object-relational-mappers">Object-Relational Mappers</h1>
+<p>The pet database layer, implemented with Peewee</p>
+<hr style="border:0;border-top:1px solid #c3cbd0;margin:32px 0 18px">
+<p class="slide-author" style="font-size:22px">
+Gregory S. DeLozier, PhD
+</p>
+</section>
+<section><h2 id="the-routes-interface">The Route’s Interface</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> database.get_pet(<span class="bu">id</span>)</span></code></pre></div>
+<p><strong>Input:</strong> a pet identifier</p>
+<p><strong>Output:</strong> a dictionary, or <code>None</code></p>
+<p>The implementation now uses an object-relational mapper (ORM).</p>
+</section>
+<section><h2 id="a-lookup-through-peewee">A Lookup Through Peewee</h2>
+<p><img src="slide-assets/diagram-03.svg"
+alt="A Lookup Through Peewee" /></p>
+<p>Peewee generates Structured Query Language (SQL).</p>
+</section>
+<section><h2 id="running-the-example">Running the Example</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
+<p><code>http://127.0.0.1:5000/list</code></p>
+<p>Setup also runs separately:
+<code>python3 setup_database.py</code></p>
+</section>
+<section><h2 id="the-pet-model">The Pet Model</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Pet(BaseModel):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> TextField(null<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">type</span> <span class="op">=</span> TextField(null<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    age <span class="op">=</span> IntegerField(default<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    food <span class="op">=</span> TextField(null<span class="op">=</span><span class="va">True</span>)</span></code></pre></div>
+<p>Peewee supplies the integer primary key,
+<strong><code>id</code></strong>.</p>
+</section>
+<section><h2 id="class-field-instance">Class, Field, Instance</h2>
+<table>
+<thead>
+<tr>
+<th>Expression</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Pet</code></td>
+<td>Model class for the table</td>
+</tr>
+<tr>
+<td><code>Pet.name</code></td>
+<td>Field used to build a query</td>
+</tr>
+<tr>
+<td><code>pet.name</code></td>
+<td>Name on one instance</td>
+</tr>
+<tr>
+<td><code>pet.id</code></td>
+<td>Identifier of that pet</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Pet</code> describes records. <code>pet</code> holds
+one record’s values.</strong></p>
+</section>
+<section><h2 id="connecting-the-model">Connecting the Model</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> SqliteDatabase(<span class="va">None</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> BaseModel(Model):</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> Meta:</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        database <span class="op">=</span> db</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>db.init(<span class="st">&quot;pets.db&quot;</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>db.<span class="ex">connect</span>(reuse_if_open<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>db.create_tables([Pet])</span></code></pre></div>
+</section>
+<section><h2 id="reading-the-list">Reading the List</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_pets():</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    query <span class="op">=</span> Pet.select().order_by(Pet.name, Pet.<span class="bu">id</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [pet_to_dict(pet) <span class="cf">for</span> pet <span class="kw">in</span> query]</span></code></pre></div>
+<p><strong>Query construction:</strong>
+<code>select().order_by(...)</code></p>
+<p><strong>Execution:</strong> iteration over <code>query</code></p>
+</section>
+<section><h2 id="reading-one-pet">Reading One Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pet <span class="op">=</span> Pet.get_or_none(Pet.<span class="bu">id</span> <span class="op">==</span> <span class="bu">int</span>(<span class="bu">id</span>))</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> pet <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">None</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> pet_to_dict(pet)</span></code></pre></div>
+<p><code>Pet.id == int(id)</code> builds a <strong>SQL
+condition</strong>.</p>
+</section>
+<section><h2 id="returning-a-dictionary">Returning a Dictionary</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pet_to_dict(pet):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;id&quot;</span>: pet.<span class="bu">id</span>, <span class="st">&quot;name&quot;</span>: pet.name,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;type&quot;</span>: pet.<span class="bu">type</span>, <span class="st">&quot;age&quot;</span>: pet.age,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;food&quot;</span>: pet.food,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    }</span></code></pre></div>
+<p>The templates keep using <code>pet['food']</code>.</p>
+</section>
+<section><h2 id="creating-a-pet">Creating a Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> create_pet(data):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    pet <span class="op">=</span> Pet.create(<span class="op">**</span>_pet_values(data))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pet.<span class="bu">id</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>Pet.create(name<span class="op">=</span><span class="st">&quot;Casey&quot;</span>, <span class="bu">type</span><span class="op">=</span><span class="st">&quot;dog&quot;</span>,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>           age<span class="op">=</span><span class="dv">9</span>, food<span class="op">=</span><span class="st">&quot;kibble&quot;</span>)</span></code></pre></div>
+<p><code>create()</code> inserts and returns the <strong>saved
+instance</strong>.</p>
+</section>
+<section><h2 id="updating-caseys-food">Updating Casey’s Food</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>database.update_pet(<span class="dv">10</span>, {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Casey&quot;</span>, <span class="st">&quot;type&quot;</span>: <span class="st">&quot;dog&quot;</span>, <span class="st">&quot;age&quot;</span>: <span class="st">&quot;9&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;food&quot;</span>: <span class="st">&quot;chicken&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Casey, <code>id=10</code></td>
+<td><code>food="kibble"</code></td>
+<td><code>food="chicken"</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="executing-the-update">Executing the Update</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Pet.update(<span class="op">**</span>_pet_values(data)).where(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    Pet.<span class="bu">id</span> <span class="op">==</span> <span class="bu">int</span>(<span class="bu">id</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>).execute()</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update(...)</code></td>
+<td>Replacement values</td>
+</tr>
+<tr>
+<td><code>where(...)</code></td>
+<td>Which pet</td>
+</tr>
+<tr>
+<td><code>execute()</code></td>
+<td>Run the statement</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="deleting-one-pet">Deleting One Pet</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Pet.delete().where(Pet.<span class="bu">id</span> <span class="op">==</span> <span class="bu">int</span>(<span class="bu">id</span>)).execute()</span></code></pre></div>
+<p>The <strong>condition</strong> selects the record.</p>
+<p>The <strong>execution</strong> performs the deletion.</p>
+</section>
+<section><h2 id="object-changes-and-saved-values">Object Changes and Saved
+Values</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pet.food <span class="op">=</span> <span class="st">&quot;chicken&quot;</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Object’s food</th>
+<th>Stored food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load Casey</td>
+<td>kibble</td>
+<td>kibble</td>
+</tr>
+<tr>
+<td>Assign <code>pet.food</code></td>
+<td>chicken</td>
+<td>kibble</td>
+</tr>
+<tr>
+<td>Call <code>pet.save()</code></td>
+<td>chicken</td>
+<td>chicken</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="grouping-writes">Grouping Writes</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> database.db.atomic():</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    database.create_pet(casey_data)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    database.create_pet(heidi_data)</span></code></pre></div>
+<p>Successful block: <strong>commit both</strong>.</p>
+<p>Exception escaping the block: <strong>roll back both</strong>.</p>
+</section>
+<section><h2 id="inspecting-the-sql">Inspecting the SQL</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>query <span class="op">=</span> Pet.select().where(Pet.<span class="bu">type</span> <span class="op">==</span> <span class="st">&quot;cat&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>statement, parameters <span class="op">=</span> query.sql()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(statement)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(parameters)</span></code></pre></div>
+<p>Where is the <strong>condition</strong>? Where is the
+<strong>value</strong>?</p>
+</section>
+<section><h2 id="testing-persistence">Testing Persistence</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> database.py</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> unittest <span class="at">-v</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What it establishes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Close, reopen, read</td>
+<td>Values reached the database</td>
+</tr>
+<tr>
+<td>Assign, read, save, read</td>
+<td>When object changes persist</td>
+</tr>
+<tr>
+<td>Raise inside <code>atomic()</code></td>
+<td>Grouped writes roll back</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="what-should-cross-the-boundary">What Should Cross the
+Boundary?</h2>
+<p><code>get_pet(id)</code> could return a dictionary or a Peewee
+instance.</p>
+<p>What changes for the caller?</p>
+<p>Keep the return contract explicit when changing the
+implementation.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

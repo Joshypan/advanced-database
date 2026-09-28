@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Object-Relational Mappers</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Object-Relational Mappers: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-70656f706c652e6462">people.db</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-73657373696f6e2e747874">session.txt</a></li>
+<li><a href="#file-73657475705f64617461626173652e7079">setup_database.py</a></li>
+<li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
+<li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
+<li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f64617461626173652e7079">test_database.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079"><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>from flask import Flask, render_template, request, redirect, url_for
+import database
+
+# remember to $ pip install flask
+# remember to $ pip install peewee
+
+database.initialize("pets.db")
+
+app = Flask(__name__)
+
+
+def error_page(message, status=400):
+    # Return a readable message with the supplied HTTP status.
+    return message, status, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.route("/", methods=["GET"])
+@app.route("/list", methods=["GET"])
+def get_list():
+    pets = database.get_pets()
+    return render_template("list.html", pets=pets)
+
+
+@app.route("/create", methods=["GET"])
+def get_create():
+    return render_template("create.html")
+
+
+@app.route("/create", methods=["POST"])
+def post_create():
+    data = dict(request.form)
+    name = (data.get("name") or "").strip()
+    pet_type = (data.get("type") or "").strip()
+    if name == "":
+        return error_page("Error: name is required.", 400)
+    if pet_type == "":
+        return error_page("Error: type is required.", 400)
+
+    database.create_pet(data)
+    return redirect(url_for("get_list"))
+
+
+@app.route("/delete/&lt;id&gt;", methods=["GET"])
+def get_delete(id):
+    try:
+        # Validate id early so ValueError doesn't become a 500.
+        int(id)
+    except ValueError:
+        return error_page("Error: pet id must be an integer.", 400)
+
+    database.delete_pet(id)
+    return redirect(url_for("get_list"))
+
+
+@app.route("/update/&lt;id&gt;", methods=["GET"])
+def get_update(id):
+    try:
+        int(id)
+    except ValueError:
+        return error_page("Error: pet id must be an integer.", 400)
+
+    data = database.get_pet(id)
+    if data is None:
+        return error_page("Error: pet not found.", 404)
+    return render_template("update.html", data=data)
+
+
+@app.route("/update/&lt;id&gt;", methods=["POST"])
+def post_update(id):
+    try:
+        int(id)
+    except ValueError:
+        return error_page("Error: pet id must be an integer.", 400)
+
+    data = dict(request.form)
+    name = (data.get("name") or "").strip()
+    pet_type = (data.get("type") or "").strip()
+    if name == "":
+        return error_page("Error: name is required.", 400)
+    if pet_type == "":
+        return error_page("Error: type is required.", 400)
+
+    if database.get_pet(id) is None:
+        return error_page("Error: pet not found.", 404)
+
+    database.update_pet(id, data)
+    return redirect(url_for("get_list"))
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    try:
+        database.get_pets()
+        return error_page("ok", 200)
+    except Exception as e:
+        return error_page(f"Error checking health: {e}", 500)
+</code></pre></section>
+<section class="source-file" id="file-64617461626173652e7079" aria-labelledby="title-file-64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-64617461626173652e7079">database.py</h2></header><pre><code>"""Pet operations implemented with Peewee, returning ordinary dictionaries.
+
+Peewee, Charles Leifer: models, queries, and writes.
+https://docs.peewee-orm.com/en/latest/peewee/models.html
+https://docs.peewee-orm.com/en/latest/peewee/querying.html
+https://docs.peewee-orm.com/en/latest/peewee/writing.html
+"""
+import os
+
+from peewee import IntegerField, Model, SqliteDatabase, TextField
+from playhouse.migrate import SqliteMigrator, migrate
+
+# Bind the file later so the app and tests can use different databases.
+# https://docs.peewee-orm.com/en/latest/peewee/database.html
+db = SqliteDatabase(None)
+
+
+class BaseModel(Model):
+    # Meta configures the model; it does not declare stored fields.
+    class Meta:
+        database = db
+
+
+class Pet(BaseModel):
+    # Class attributes describe columns. Peewee supplies an integer id field.
+    name = TextField(null=False)
+    type = TextField(null=False)
+    age = IntegerField(default=0)
+    food = TextField(null=True)
+
+
+def initialize(database_file):
+    close_connection()
+    db.init(database_file)
+    db.connect(reuse_if_open=True)
+    db.create_tables([Pet])
+
+    # Preserve rows in the original example when adding the food field.
+    # create_tables() creates missing tables; it does not alter existing ones.
+    # https://docs.peewee-orm.com/en/latest/peewee/db_tools.html#schema-migrations
+    columns = {column.name for column in db.get_columns("pet")}
+    if "food" not in columns:
+        migrate(SqliteMigrator(db).add_column("pet", "food", TextField(null=True)))
+
+
+def close_connection():
+    if not db.is_closed():
+        db.close()
+
+
+def _normalize_age(value):
+    # Keep the example's conversion rule for values received from a form.
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _pet_values(data):
+    name = (data.get("name") or "").strip()
+    pet_type = (data.get("type") or "").strip()
+    if not name:
+        raise ValueError("Pet name is required.")
+    if not pet_type:
+        raise ValueError("Pet type is required.")
+    return {
+        "name": name,
+        "type": pet_type,
+        "age": _normalize_age(data.get("age")),
+        "food": data.get("food", ""),
+    }
+
+
+def pet_to_dict(pet):
+    # Keep model objects inside this layer. Routes and templates use dictionaries.
+    return {
+        "id": pet.id, "name": pet.name, "type": pet.type,
+        "age": pet.age, "food": pet.food,
+    }
+
+
+def get_pets():
+    # select() builds a query. Iteration retrieves rows as Pet objects.
+    query = Pet.select().order_by(Pet.name, Pet.id)
+    return [pet_to_dict(pet) for pet in query]
+
+
+def get_pet(id):
+    # This comparison builds a SQL condition, not an ordinary Python Boolean.
+    pet = Pet.get_or_none(Pet.id == int(id))
+    if pet is None:
+        return None
+    return pet_to_dict(pet)
+
+
+def create_pet(data):
+    # create() inserts immediately and returns the saved model instance.
+    pet = Pet.create(**_pet_values(data))
+    return pet.id
+
+
+def delete_pet(id):
+    # where() selects the record. execute() runs the DELETE statement.
+    Pet.delete().where(Pet.id == int(id)).execute()
+
+
+def update_pet(id, data):
+    # update() builds the statement; execute() sends it to SQLite.
+    Pet.update(**_pet_values(data)).where(Pet.id == int(id)).execute()
+
+
+def setup_test_database(db_file="test_pets.db"):
+    close_connection()
+    try:
+        os.remove(db_file)
+    except FileNotFoundError:
+        pass
+
+    initialize(db_file)
+
+    pets = [
+        {"name": "dorothy", "type": "dog", "age": 9, "food": "kibble"},
+        {"name": "suzy", "type": "mouse", "age": 9},
+        {"name": "casey", "type": "dog", "age": 9},
+        {"name": "heidi", "type": "cat", "age": 15},
+    ]
+    for pet in pets:
+        create_pet(pet)
+
+    assert len(get_pets()) == 4
+
+
+def test_get_pets():
+    pets = get_pets()
+    assert type(pets) is list
+    assert len(pets) &gt;= 1
+    assert type(pets[0]) is dict
+    for key in ["id", "name", "type", "age", "food"]:
+        assert key in pets[0]
+    assert type(pets[0]["name"]) is str
+
+
+def test_create_pet_and_get_pet():
+    new_id = create_pet({"name": "walter", "age": "2", "type": "mouse", "food": "seeds"})
+    pet = get_pet(new_id)
+    assert pet is not None
+    assert pet["name"] == "walter"
+    assert pet["age"] == 2
+    assert pet["type"] == "mouse"
+    assert pet["food"] == "seeds"
+
+
+def test_update_pet():
+    new_id = create_pet({"name": "temp", "age": 1, "type": "cat"})
+    update_pet(new_id, {"name": "updated", "age": "8", "type": "dog", "food": "kibble"})
+    pet = get_pet(new_id)
+    assert pet is not None
+    assert pet["name"] == "updated"
+    assert pet["age"] == 8
+    assert pet["type"] == "dog"
+    assert pet["food"] == "kibble"
+
+
+def test_delete_pet():
+    new_id = create_pet({"name": "delete_me", "age": 3, "type": "fish"})
+    delete_pet(new_id)
+    assert get_pet(new_id) is None
+
+
+if __name__ == "__main__":
+    setup_test_database()
+    test_get_pets()
+    test_create_pet_and_get_pet()
+    test_update_pet()
+    test_delete_pet()
+    close_connection()
+    print("done.")
+</code></pre></section>
+<section class="source-file" id="file-70656f706c652e6462" aria-labelledby="title-file-70656f706c652e6462" hidden><header class="file-header"><h2 id="title-file-70656f706c652e6462">people.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>Flask==3.1.3
+peewee==4.0.0
+</code></pre></section>
+<section class="source-file" id="file-73657373696f6e2e747874" aria-labelledby="title-file-73657373696f6e2e747874" hidden><header class="file-header"><h2 id="title-file-73657373696f6e2e747874">session.txt</h2></header><pre><code>Script started on 2026-02-23 22:59:37+00:00
+
+$ pip install peewee
+
+Collecting peewee
+Downloading peewee-4.0.0-py3-none-any.whl.metadata (8.1 kB)
+Downloading peewee-4.0.0-py3-none-any.whl (139 kB)
+Installing collected packages: peewee
+Successfully installed peewee-4.0.0
+
+[notice] A new release of pip is available: 25.3 -&gt; 26.0.1
+[notice] To update, run: python3 -m pip install --upgrade pip
+
+$ python3 -m pip install --upgrade pip
+
+Requirement already satisfied: pip (25.3)
+Collecting pip
+Downloading pip-26.0.1-py3-none-any.whl.metadata (4.7 kB)
+Downloading pip-26.0.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+Attempting uninstall: pip 25.3
+Successfully uninstalled pip-25.3
+Successfully installed pip-26.0.1
+
+$ python
+
+Python 3.12.1 on linux
+
+&gt;&gt;&gt; from peewee import *
+&gt;&gt;&gt; db = SqliteDatabase("people.db")
+
+&gt;&gt;&gt; class Person(Model):
+...     name = CharField()
+...     birthday = DateField()
+...     class Meta:
+...         database = db
+
+&gt;&gt;&gt; class Pet(Model):
+...     owner = ForeignKeyField(Person, backref="pets")
+...     name = CharField()
+...     animal_type = CharField()
+...     class Meta:
+...         database = db
+
+&gt;&gt;&gt; db.connect()
+True
+
+&gt;&gt;&gt; db.create_tables([Person, Pet])
+
+&gt;&gt;&gt; from datetime import date
+
+&gt;&gt;&gt; uncle_bob = Person(name="Bob", birthday=date(1960, 1, 15))
+&gt;&gt;&gt; uncle_bob.save()
+1
+
+&gt;&gt;&gt; grandma = Person.create(name="Grandma", birthday=date(1935, 3, 1))
+&gt;&gt;&gt; herb = Person.create(name="Herb", birthday=date(1950, 5, 5))
+
+&gt;&gt;&gt; bob_kitty = Pet.create(owner=uncle_bob, name="Kitty", animal_type="cat")
+&gt;&gt;&gt; herb_fido = Pet.create(owner=herb, name="Fido", animal_type="dog")
+&gt;&gt;&gt; herb_mittens = Pet.create(owner=herb, name="Mittens", animal_type="cat")
+&gt;&gt;&gt; herb_mittens_jr = Pet.create(owner=herb, name="Mittens Jr", animal_type="cat")
+
+&gt;&gt;&gt; herb_mittens.delete_instance()
+1
+
+&gt;&gt;&gt; grandma = Person.get(Person.name == "Grandma L.")
+Traceback (most recent call last):
+PersonDoesNotExist: &lt;Model: Person&gt; instance matching query does not exist
+
+&gt;&gt;&gt; grandma = Person.get(Person.name == "Grandma")
+
+&gt;&gt;&gt; grandma.name
+'Grandma'
+
+&gt;&gt;&gt; grandma.birthday
+datetime.date(1935, 3, 1)
+
+&gt;&gt;&gt; for person in Person.select():
+...     print(person.name)
+...
+Bob
+Grandma
+Herb
+
+&gt;&gt;&gt; people = Person.select()
+&gt;&gt;&gt; list(people)
+[&lt;Person: 1&gt;, &lt;Person: 2&gt;, &lt;Person: 3&gt;]
+
+&gt;&gt;&gt; [p.name for p in people]
+['Bob', 'Grandma', 'Herb']
+
+&gt;&gt;&gt; query = Pet.select().where(Pet.animal_type == "cat")
+&gt;&gt;&gt; for pet in query:
+...     print(pet.name, pet.owner.name)
+...
+Kitty Bob
+Mittens Jr Herb
+
+&gt;&gt;&gt; [(pet.name, pet.owner.name) for pet in Pet.select().where(Pet.animal_type == "cat")]
+[('Kitty', 'Bob'), ('Mittens Jr', 'Herb')]</code></pre></section>
+<section class="source-file" id="file-73657475705f64617461626173652e7079" aria-labelledby="title-file-73657475705f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f64617461626173652e7079">setup_database.py</h2></header><pre><code>"""Prepare the pet table without starting Flask."""
+import argparse
+import database
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Prepare the Peewee pet database.")
+    parser.add_argument("database_file", nargs="?", default="pets.db")
+    args = parser.parse_args()
+    database.initialize(args.database_file)
+    database.close_connection()
+    print(f"Ready: {args.database_file}")
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the create template.
+    &lt;form action="/create" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" /&gt;&lt;/p&gt;
+        &lt;p&gt;Age:&lt;input name="age" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type:&lt;input name="type" /&gt;&lt;/p&gt;
+        &lt;p&gt;Food:&lt;input name="food" /&gt;&lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Create&lt;/button&gt;
+        &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</h2></header><pre><code>&lt;html&gt;
+&lt;h3&gt;Pets:&lt;/h3&gt;
+&lt;table&gt;
+    &lt;tr&gt;
+        &lt;th&gt;ID&lt;/th&gt;
+        &lt;th&gt;Name&lt;/th&gt;
+        &lt;th&gt;Type&lt;/th&gt;
+        &lt;th&gt;Age&lt;/th&gt;
+        &lt;th&gt;Food&lt;/th&gt;
+    &lt;/tr&gt;
+    {% for pet in pets %}
+    &lt;tr&gt;
+        &lt;td&gt;{{ pet['id'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['name'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['type'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['age'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['food'] or '' }}&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/delete/{{pet['id']}}"&gt;Delete&lt;/a&gt;&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/update/{{pet['id']}}"&gt;Update&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    {% endfor %}
+&lt;/table&gt;
+&lt;hr /&gt;
+&lt;a href="/create"&gt;Create New Pet&lt;/a&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the update template.
+    &lt;form action="/update/{{data['id']}}" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" value="{{data['name']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Age:&lt;input name="age" value="{{data['age']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type:&lt;input name="type" value="{{data['type']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Food:&lt;input name="food" value="{{data['food'] or ''}}" /&gt;&lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Update&lt;/button&gt;
+        &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-746573745f64617461626173652e7079" aria-labelledby="title-file-746573745f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-746573745f64617461626173652e7079">test_database.py</h2></header><pre><code>"""Run with python3 -m unittest -v. All writes use temporary databases."""
+from pathlib import Path
+import sqlite3
+import tempfile
+import unittest
+
+import database
+
+
+class DatabaseTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = str(Path(self.temp.name) / 'pets.db')
+        database.initialize(self.path)
+
+    def tearDown(self):
+        database.close_connection()
+        self.temp.cleanup()
+
+    def pet(self):
+        return dict(name="O'Malley", type='cat', age='3', food='salmon')
+
+    def test_crud_and_reopen(self):
+        pet_id = database.create_pet(self.pet())
+        self.assertEqual(database.get_pet(pet_id)['food'], 'salmon')
+        database.update_pet(pet_id, {'name': "O'Malley", 'type': 'cat', 'age': '4', 'food': 'tuna'})
+        database.close_connection()
+        database.initialize(self.path)
+        saved = database.get_pet(pet_id)
+        self.assertEqual(saved['age'], 4)
+        self.assertEqual(saved['food'], 'tuna')
+        # Independent SQLite read confirms that the ORM saved a real table row.
+        with sqlite3.connect(self.path) as connection:
+            self.assertEqual(connection.execute('select food from pet where id=?', (pet_id,)).fetchone(), ('tuna',))
+        database.delete_pet(pet_id)
+        self.assertIsNone(database.get_pet(pet_id))
+
+    def test_queries_and_validation(self):
+        for name in ['Zelda', 'Alex', 'Alex']:
+            database.create_pet({'name': name, 'type': 'dog', 'age': 'unknown'})
+        pets = database.get_pets()
+        self.assertEqual([p['name'] for p in pets], ['Alex', 'Alex', 'Zelda'])
+        self.assertEqual(pets[0]['age'], 0)
+        self.assertLess(pets[0]['id'], pets[1]['id'])
+        for values in [{'name': ' ', 'type': 'dog'}, {'name': 'Casey', 'type': ''}]:
+            with self.assertRaises(ValueError):
+                database.create_pet(values)
+        self.assertEqual(len(database.get_pets()), 3)
+
+    def test_unsaved_object_and_explicit_save(self):
+        pet = database.Pet(name='Casey', type='dog', food='kibble')
+        self.assertEqual(database.get_pets(), [])
+        pet.save()
+        pet.food = 'chicken'
+        self.assertEqual(database.get_pet(pet.id)['food'], 'kibble')
+        pet.save()
+        self.assertEqual(database.get_pet(pet.id)['food'], 'chicken')
+
+    def test_atomic_rollback(self):
+        with self.assertRaises(ValueError):
+            with database.db.atomic():
+                database.create_pet(self.pet())
+                raise ValueError('Cancel the group of writes')
+        self.assertEqual(database.get_pets(), [])
+
+    def test_existing_table_gains_food_without_losing_rows(self):
+        old_path = str(Path(self.temp.name) / 'older.db')
+        with sqlite3.connect(old_path) as connection:
+            connection.execute('create table pet (id integer primary key, name text not null, type text not null, age integer not null)')
+            connection.execute("insert into pet values (1, 'Casey', 'dog', 9)")
+        database.initialize(old_path)
+        self.assertEqual(database.get_pet(1)['name'], 'Casey')
+        self.assertIsNone(database.get_pet(1)['food'])
+        database.initialize(old_path)
+        self.assertEqual(len(database.get_pets()), 1)
+
+
+if __name__ == '__main__':
+    unittest.main()
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-06-object-relational-mappers/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

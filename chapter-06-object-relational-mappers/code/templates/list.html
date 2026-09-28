@@ -1,0 +1,26 @@
+<html>
+<h3>Pets:</h3>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Age</th>
+        <th>Food</th>
+    </tr>
+    {% for pet in pets %}
+    <tr>
+        <td>{{ pet['id'] }}</td>
+        <td>{{ pet['name'] }}</td>
+        <td>{{ pet['type'] }}</td>
+        <td>{{ pet['age'] }}</td>
+        <td>{{ pet['food'] or '' }}</td>
+        <td><a href="/delete/{{pet['id']}}">Delete</a></td>
+        <td><a href="/update/{{pet['id']}}">Update</a></td>
+    </tr>
+    {% endfor %}
+</table>
+<hr />
+<a href="/create">Create New Pet</a>
+
+</html>

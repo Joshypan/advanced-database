@@ -1,0 +1,14 @@
+*.pyc
+/__pycache__
+.DS_Store
+
+**/__pycache__/
+.ipynb_checkpoints/
+.jupyter/
+.release-build/
+.release-previous/
+
+# Local datasets and the generated IMDb database
+**/data/
+**/imdb.db
+**/imdb.db-*

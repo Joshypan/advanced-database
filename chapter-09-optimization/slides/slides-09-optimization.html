@@ -162,6 +162,15 @@ class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#c
 <code>\N</code>.</p>
 <p>Personal and non-commercial use only.</p>
 </section>
+<section><h2 id="keep-the-data-out-of-git">Keep the Data Out of Git</h2>
+<p><strong>Before downloading</strong>, add to the root
+<code>.gitignore</code>:</p>
+<pre class="gitignore"><code>**/data/
+**/imdb.db
+**/imdb.db-*</code></pre>
+<p>Commit the code and <code>.gitignore</code>. Keep the data local.</p>
+<p>Check: <code>git check-ignore -v data/title.basics.tsv.gz</code></p>
+</section>
 <section><h2 id="get-your-own-titles-database">Get Your Own Titles Database</h2>
 <p>IMDb supplies <strong>two compressed data files</strong>.</p>
 <p>The course supplies <code>import_imdb.py</code> and
@@ -175,7 +184,7 @@ class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#c
 <p>The loader reads local files; it does not download them.</p>
 </section>
 <section><h2 id="loading-in-chunks">Loading in Chunks</h2>
-<p><img src="slide-assets/diagram-19.svg" alt="Loading in Chunks" /></p>
+<p><img src="slide-assets/diagram-20.svg" alt="Loading in Chunks" /></p>
 <p>12.8 million rows in 54 seconds. No secondary indexes yet.</p>
 </section>
 <section><h2 id="one-index-one-query">One Index, One Query</h2>

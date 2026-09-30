@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 9: Optimization</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="optimization">Optimization</h1>
+<p>From fruit and state to millions of titles</p>
+<hr style="border:0;border-top:1px solid #c3cbd0;margin:32px 0 18px">
+<p class="slide-author" style="font-size:22px">
+Gregory S. DeLozier, PhD
+</p>
+</section>
+<section><h2 id="the-small-table">The Small Table</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">table</span> fruitsforsale (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    fruit text, state text, price <span class="dt">real</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>Seven rows. Oranges from Florida and California.</p>
+<p>Follow the rows through the SQLite illustrations.</p>
+</section>
+<section><h2 id="a-full-table-scan">A Full Table Scan</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> price <span class="kw">from</span> fruitsforsale</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> fruit <span class="op">=</span> <span class="st">&#39;Peach&#39;</span>;</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/fullscan.gif"
+alt="A full table scan reads every row" /></p>
+<p>Time grows with <strong>N</strong>.</p>
+</section>
+<section><h2 id="lookup-by-rowid">Lookup by Rowid</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> price <span class="kw">from</span> fruitsforsale</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> <span class="dt">rowid</span> <span class="op">=</span> <span class="dv">4</span>;</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/rowidlu.gif"
+alt="Lookup by rowid uses binary search" /></p>
+<p>Time grows with <strong>log N</strong>.</p>
+</section>
+<section><h2 id="an-index">An Index</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> Idx1 <span class="kw">on</span> fruitsforsale(fruit);</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/idx1.gif"
+alt="An index on fruit, sorted, with rowids" /></p>
+<p>A sorted copy of a column, plus rowids.</p>
+</section>
+<section><h2 id="using-an-index">Using an Index</h2>
+<p><img src="slide-assets/sqlite-query-planner/idx1lu1.gif"
+alt="Indexed lookup for peaches" /></p>
+<p>Two binary searches: the index, then the table.</p>
+</section>
+<section><h2 id="reading-a-query-plan">Reading a Query Plan</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">explain</span> <span class="kw">query</span> <span class="kw">plan</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> price <span class="kw">from</span> fruitsforsale</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> fruit <span class="op">=</span> <span class="st">&#39;Peach&#39;</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Plan text</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SCAN fruitsforsale</code></td>
+<td>Read every row</td>
+</tr>
+<tr>
+<td><code>SEARCH ... USING INDEX</code></td>
+<td>Find rows by index</td>
+</tr>
+<tr>
+<td><code>... COVERING INDEX</code></td>
+<td>Index alone answers</td>
+</tr>
+<tr>
+<td><code>USE TEMP B-TREE FOR ORDER BY</code></td>
+<td>Sort step</td>
+</tr>
+</tbody>
+</table>
+<p>Look for <strong>SCAN</strong> first.</p>
+</section>
+<section><h2 id="two-conditions">Two Conditions</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> price <span class="kw">from</span> fruitsforsale</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> fruit <span class="op">=</span> <span class="st">&#39;Orange&#39;</span> <span class="kw">and</span> state <span class="op">=</span> <span class="st">&#39;CA&#39;</span>;</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/idx1lu3.gif"
+alt="Find by fruit, then reject the wrong state" /></p>
+<p>Find the oranges. Check their states.</p>
+</section>
+<section><h2 id="a-multi-column-index">A Multi-Column Index</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> Idx3 <span class="kw">on</span> fruitsforsale(fruit, state);</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/idx3lu1.gif"
+alt="One search finds both conditions" /></p>
+<p><strong>Fruit first; state breaks ties.</strong></p>
+</section>
+<section><h2 id="a-covering-index">A Covering Index</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> Idx4 <span class="kw">on</span> fruitsforsale(fruit, state, price);</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/idx4lu1.gif"
+alt="The query never touches the table" /></p>
+<p>The index contains the answer: <strong>price</strong>.</p>
+</section>
+<section><h2 id="or">OR</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> price <span class="kw">from</span> fruitsforsale</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> fruit <span class="op">=</span> <span class="st">&#39;Orange&#39;</span> <span class="kw">or</span> state <span class="op">=</span> <span class="st">&#39;CA&#39;</span>;</span></code></pre></div>
+<p><img src="slide-assets/sqlite-query-planner/orquery.gif"
+alt="Each OR term uses its own index" /></p>
+<p>Combine matches; return each matching row once.</p>
+</section>
+<section><h2 id="sorting">Sorting</h2>
+<p><img src="slide-assets/sqlite-query-planner/obfruitnoidx.gif"
+alt="Sorting without an index" /></p>
+<p>Collect every row, then sort: <strong>K log K</strong>, plus
+temporary storage.</p>
+</section>
+<section><h2 id="sorting-with-an-index">Sorting with an Index</h2>
+<p><img src="slide-assets/sqlite-query-planner/obfruitidx4.gif"
+alt="Scanning a covering index returns rows in order" /></p>
+<p>An index is already in order.</p>
+</section>
+<section><h2 id="search-and-sort-together">Search and Sort Together</h2>
+<p><img src="slide-assets/sqlite-query-planner/fruitobstate0.gif"
+alt="One index finds the oranges and returns them in state order" /></p>
+<p><code>where fruit = 'Orange' order by state</code>, with an index on
+<code>(fruit, state)</code>.</p>
+</section>
+<section><h2 id="partial-sort">Partial Sort</h2>
+<p><img src="slide-assets/sqlite-query-planner/partial-sort.gif"
+alt="Many small sorts instead of one large one" /></p>
+<p><code>order by fruit, price</code>: the index gives fruit order;
+SQLite sorts within each fruit.</p>
+</section>
+<section><h2 id="statistics">Statistics</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">analyze</span>;</span></code></pre></div>
+<p>SQLite picks among indexes by estimated selectivity.</p>
+<p>Without statistics, the choice is close to arbitrary.</p>
+<p>It also makes a <strong>skip-scan</strong> possible.</p>
+</section>
+<section><h2 id="real-data">Real Data</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title.basics</code></td>
+<td>12,811,750</td>
+</tr>
+<tr>
+<td><code>title.ratings</code></td>
+<td>1,713,431</td>
+</tr>
+</tbody>
+</table>
+<p>Gzip-compressed tab-separated values (TSV). Missing value:
+<code>\N</code>.</p>
+<p>Personal and non-commercial use only.</p>
+</section>
+<section><h2 id="get-your-own-titles-database">Get Your Own Titles Database</h2>
+<p>IMDb supplies <strong>two compressed data files</strong>.</p>
+<p>The course supplies <code>import_imdb.py</code> and
+<code>schema.sql</code>.</p>
+<ol type="1">
+<li>Download <code>title.basics.tsv.gz</code> and
+<code>title.ratings.tsv.gz</code> into <code>data/</code>.</li>
+<li>Run <code>python3 import_imdb.py</code> in the code folder.</li>
+<li>Open the resulting <code>imdb.db</code>.</li>
+</ol>
+<p>The loader reads local files; it does not download them.</p>
+</section>
+<section><h2 id="loading-in-chunks">Loading in Chunks</h2>
+<p><img src="slide-assets/diagram-19.svg" alt="Loading in Chunks" /></p>
+<p>12.8 million rows in 54 seconds. No secondary indexes yet.</p>
+</section>
+<section><h2 id="one-index-one-query">One Index, One Query</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> tconst, start_year <span class="kw">from</span> titles</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> primary_title <span class="op">=</span> <span class="st">&#39;The Godfather&#39;</span></span></code></pre></div>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>Plan</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No index</td>
+<td><code>SCAN titles</code></td>
+<td>4,536 ms</td>
+</tr>
+<tr>
+<td><code>create index ... (primary_title)</code></td>
+<td><code>SEARCH ... USING INDEX</code></td>
+<td>under 0.1 ms</td>
+</tr>
+</tbody>
+</table>
+<p><strong>47 titles</strong> are called “The Godfather”.</p>
+</section>
+<section><h2 id="what-an-index-costs">What an Index Costs</h2>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Build</th>
+<th>Size added</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>primary_title</code></td>
+<td>18.4 s</td>
+<td>381 MB</td>
+</tr>
+<tr>
+<td><code>title_type, start_year</code></td>
+<td>16.4 s</td>
+<td>263 MB</td>
+</tr>
+<tr>
+<td><code>title_type, start_year, primary_title</code></td>
+<td>30.5 s</td>
+<td>536 MB</td>
+</tr>
+<tr>
+<td><code>ratings(num_votes)</code></td>
+<td>0.7 s</td>
+<td>18 MB</td>
+</tr>
+</tbody>
+</table>
+<p>500,000 inserts: 0.25 s with no index, 0.37 s with one, 1.06 s with
+three.</p>
+</section>
+<section><h2 id="two-conditions-on-titles">Two Conditions on Titles</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">from</span> titles</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> title_type <span class="op">=</span> <span class="st">&#39;movie&#39;</span> <span class="kw">and</span> start_year <span class="op">=</span> <span class="dv">1994</span>;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No useful index</td>
+<td>4,435 ms</td>
+</tr>
+<tr>
+<td><code>start_year</code></td>
+<td>37.7 ms</td>
+</tr>
+<tr>
+<td><code>(title_type, start_year)</code></td>
+<td>0.1 ms</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="column-order-matters">Column Order Matters</h2>
+<table>
+<thead>
+<tr>
+<th>Conditions</th>
+<th>Index used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title_type</code></td>
+<td>First column</td>
+</tr>
+<tr>
+<td><code>title_type</code> and <code>start_year</code></td>
+<td>Both columns</td>
+</tr>
+<tr>
+<td><code>start_year</code> alone</td>
+<td><strong>None</strong>, before <code>analyze</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>start_year</code> alone: full walk of the index, 432 ms.</p>
+<p>After <code>analyze</code>: skip-scan, 1.9 ms.</p>
+<p><code>title_type</code> alone: search, 18 ms.</p>
+</section>
+<section><h2 id="covering-a-titles-query">Covering a Titles Query</h2>
+<p><code>select primary_title ... where title_type = ? and start_year = ?</code></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Two-column index</td>
+<td>5.0 ms</td>
+</tr>
+<tr>
+<td>Covering index</td>
+<td>1.4 ms</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="or-on-titles">OR on Titles</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> tconst <span class="kw">from</span> titles</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> start_year <span class="op">=</span> ? <span class="kw">or</span> primary_title <span class="op">=</span> ?</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One term unindexed</td>
+<td>4,568 ms</td>
+</tr>
+<tr>
+<td>Both indexed</td>
+<td>0.1 ms</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="like">LIKE</h2>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>Index</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>like 'The Godfather%'</code></td>
+<td>Ordinary</td>
+<td>4,669 ms, scan</td>
+</tr>
+<tr>
+<td><code>like 'The Godfather%'</code></td>
+<td><code>collate nocase</code></td>
+<td>0.2 ms</td>
+</tr>
+<tr>
+<td><code>like '%Godfather%'</code></td>
+<td>Ordinary or <code>nocase</code></td>
+<td>5,024 ms, scan</td>
+</tr>
+</tbody>
+</table>
+<p>A wildcard at the front cannot use an ordinary index.</p>
+</section>
+<section><h2 id="top-ten-by-votes">Top Ten by Votes</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> tconst, num_votes <span class="kw">from</span> ratings</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> num_votes <span class="kw">desc</span> <span class="kw">limit</span> <span class="dv">10</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Plan</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No index</td>
+<td><code>SCAN</code> + <code>TEMP B-TREE</code></td>
+<td>77 ms</td>
+</tr>
+<tr>
+<td>Index on <code>num_votes</code></td>
+<td><code>SCAN ... USING INDEX</code></td>
+<td>under 0.1 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The plan still says SCAN. The sort is gone, and <code>limit</code>
+stops the walk.</p>
+</section>
+<section><h2 id="python-or-sql">Python or SQL?</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2,000 queries, one per title</td>
+<td>148 ms</td>
+</tr>
+<tr>
+<td>One join</td>
+<td>10 ms</td>
+</tr>
+<tr>
+<td>Fetch 643,991 years, count in Python</td>
+<td>263 ms</td>
+</tr>
+<tr>
+<td><code>group by</code> in SQL, 15 rows</td>
+<td>164 ms</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Measure.</strong></p>
+</section>
+<section><h2 id="stored-procedures">Stored Procedures</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">or</span> <span class="kw">replace</span> <span class="kw">procedure</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    change_owner(pet <span class="dt">integer</span>, new_owner text)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>language plpgsql</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">as</span> $$ <span class="op">..</span>. $$;</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">call</span> change_owner(<span class="dv">1</span>, <span class="st">&#39;Sam&#39;</span>);</span></code></pre></div>
+<p>One call: read, update, log.</p>
+<p>SQLite has none. This is <strong>PostgreSQL</strong>.</p>
+</section>
+<section><h2 id="choosing-indexes">Choosing Indexes</h2>
+<p>Start from the queries.</p>
+<p>Index what you search, join, and sort by.</p>
+<p>Equality columns first, range columns last.</p>
+<p>Drop an index that starts another.</p>
+<p>Read the plan, then <strong>measure</strong>.</p>
+</section>
+<section><h2 id="exercise-tune-three-queries">Exercise: Tune Three Queries</h2>
+<p>Longest movies over 300 minutes.</p>
+<p>Titles rated 9.5 or higher with 10,000 or more votes.</p>
+<p>Average rating of movies by decade.</p>
+<p>Read the plan. Predict the index. Check.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

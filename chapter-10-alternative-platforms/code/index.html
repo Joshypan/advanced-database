@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Alternative Platforms</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Alternative Platforms: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-73747265616d6c69742f6170702e7079">streamlit/app.py</a></li>
+<li><a href="#file-73747265616d6c69742f64617461626173652e7079">streamlit/database.py</a></li>
+<li><a href="#file-73747265616d6c69742f68656c6c6f5f776f726c642e7079">streamlit/hello_world.py</a></li>
+<li><a href="#file-73747265616d6c69742f726571756972656d656e74732e747874">streamlit/requirements.txt</a></li>
+<li><a href="#file-73747265616d6c69742f746573745f6170702e7079">streamlit/test_app.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-73747265616d6c69742f6170702e7079" aria-labelledby="title-file-73747265616d6c69742f6170702e7079"><header class="file-header"><h2 id="title-file-73747265616d6c69742f6170702e7079">streamlit/app.py</h2></header><pre><code>"""Run with: streamlit run app.py"""
+import streamlit as st
+import database
+
+st.set_page_config(page_title="Pets", layout="wide")
+database.initialize()
+st.title("Pets and Owners")
+
+# Carry a success message across the rerun that refreshes the tables.
+if "notice" in st.session_state:
+    st.success(st.session_state.pop("notice"))
+
+
+def save(operation, message):
+    """Report a data error, or refresh the page after a successful write."""
+    try:
+        operation()
+    except ValueError as error:
+        st.error(str(error))
+    except database.ConstraintError:
+        st.error("The change conflicts with a database rule. "
+                 "An owner with pets cannot be deleted; a pet needs an existing owner.")
+    else:
+        st.session_state["notice"] = message
+        st.rerun()
+
+
+def pet_form(pet=None):
+    owners = database.get_owners()
+    if not owners:
+        st.info("Add an owner before adding a pet.")
+        return
+    pet = pet or {"name": "", "age": 0, "type": "", "food": "",
+                  "owner_id": owners[0]["id"]}
+    owner_names = {owner["id"]: owner["name"] for owner in owners}
+    owner_ids = list(owner_names)
+    current = pet["owner_id"]
+    if current not in owner_ids:
+        st.warning("The owner list changed. Refresh the page.")
+        return
+    # Including the record id keeps one pet's widget state separate from another's.
+    prefix = "pet_" + str(pet.get("id", "new"))
+    with st.form(prefix):
+        name = st.text_input("Pet name", value=pet["name"], key=prefix + "_name")
+        age = st.number_input("Age", min_value=0, value=pet["age"], step=1,
+                              key=prefix + "_age")
+        kind = st.text_input("Type", value=pet["type"], key=prefix + "_type")
+        food = st.text_input("Food", value=pet["food"] or "", key=prefix + "_food")
+        owner_id = st.selectbox("Owner", owner_ids, index=owner_ids.index(current),
+                               format_func=lambda id: owner_names[id] + " (#" + str(id) + ")",
+                               key=prefix + "_owner")
+        submitted = st.form_submit_button("Save pet")
+    if submitted:
+        data = {"name": name, "age": age, "type": kind, "food": food, "owner_id": owner_id}
+        if "id" in pet:
+            save(lambda: database.update_pet(pet["id"], data), "Pet updated.")
+        else:
+            save(lambda: database.create_pet(data), "Pet added.")
+
+
+def owner_form(owner=None):
+    owner = owner or {"name": "", "city": "", "type_of_home": ""}
+    prefix = "owner_" + str(owner.get("id", "new"))
+    with st.form(prefix):
+        name = st.text_input("Owner name", value=owner["name"], key=prefix + "_name")
+        city = st.text_input("City", value=owner["city"] or "", key=prefix + "_city")
+        home = st.text_input("Type of home", value=owner["type_of_home"] or "",
+                             key=prefix + "_home")
+        submitted = st.form_submit_button("Save owner")
+    if submitted:
+        data = {"name": name, "city": city, "type_of_home": home}
+        if "id" in owner:
+            save(lambda: database.update_owner(owner["id"], data), "Owner updated.")
+        else:
+            save(lambda: database.create_owner(data), "Owner added.")
+
+
+page = st.sidebar.radio("Manage", ["Pets", "Owners"])
+action = st.sidebar.radio("Action", ["List", "Add", "Edit", "Delete"])
+records = database.get_pets() if page == "Pets" else database.get_owners()
+st.header(page)
+if records:
+    st.dataframe(records, hide_index=True, width="stretch")
+else:
+    st.info("No records yet.")
+
+if action == "Add":
+    pet_form() if page == "Pets" else owner_form()
+elif action in ("Edit", "Delete"):
+    if records:
+        choices = {record["id"]: record for record in records}
+        selected = st.selectbox("Choose a record", list(choices),
+                                format_func=lambda id: choices[id]["name"] + " (#" + str(id) + ")",
+                                key=page + "_selected")
+        record = choices[selected]
+        if action == "Edit":
+            pet_form(record) if page == "Pets" else owner_form(record)
+        else:
+            # Confirmation belongs to the selected record, not the entire page.
+            confirmed = st.checkbox("Confirm deletion of " + record["name"],
+                                    key=page + "_delete_" + str(selected))
+            if st.button("Delete record", disabled=not confirmed):
+                operation = database.delete_pet if page == "Pets" else database.delete_owner
+                save(lambda: operation(selected), "Record deleted.")
+    else:
+        st.info("Add a record first.")
+</code></pre></section>
+<section class="source-file" id="file-73747265616d6c69742f64617461626173652e7079" aria-labelledby="title-file-73747265616d6c69742f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73747265616d6c69742f64617461626173652e7079">streamlit/database.py</h2></header><pre><code>"""Pets database operations, independent of the web interface.
+
+The functions keep the pets-and-owners interface used by the SQL examples.
+Each operation owns its connection so browser sessions do not share one.
+"""
+from contextlib import contextmanager
+import os
+from pathlib import Path
+import sqlite3
+
+DEFAULT_PATH = Path(__file__).resolve().parent / "data" / "pets.db"
+ConstraintError = sqlite3.IntegrityError
+
+
+@contextmanager
+def connection():
+    path = Path(os.environ.get("PETS_DATABASE", DEFAULT_PATH))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path, timeout=10)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys = ON")
+    try:
+        with db:  # Commit on success, roll back on an exception.
+            yield db
+    finally:
+        db.close()
+
+
+def initialize():
+    with connection() as db:
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS owner (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL CHECK(length(trim(name)) &gt; 0),
+                city TEXT,
+                type_of_home TEXT
+            );
+            CREATE TABLE IF NOT EXISTS pet (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL CHECK(length(trim(name)) &gt; 0),
+                age INTEGER NOT NULL CHECK(age &gt;= 0),
+                type TEXT NOT NULL CHECK(length(trim(type)) &gt; 0),
+                food TEXT,
+                owner_id INTEGER NOT NULL REFERENCES owner(id) ON DELETE RESTRICT
+            );
+        """)
+
+
+def get_owners():
+    with connection() as db:
+        return [dict(x) for x in db.execute("SELECT * FROM owner ORDER BY name, id")]
+
+
+def get_pets():
+    with connection() as db:
+        return [dict(x) for x in db.execute("""
+            SELECT pet.*, owner.name AS owner_name FROM pet
+            JOIN owner ON pet.owner_id = owner.id ORDER BY pet.name, pet.id
+        """)]
+
+
+def get_owner(id):
+    with connection() as db:
+        row = db.execute("SELECT * FROM owner WHERE id=?", (id,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_pet(id):
+    with connection() as db:
+        row = db.execute("SELECT * FROM pet WHERE id=?", (id,)).fetchone()
+        return dict(row) if row else None
+
+
+def owner_values(data):
+    name = data["name"].strip()
+    if not name:
+        raise ValueError("Owner name is required.")
+    return name, data.get("city", "").strip(), data.get("type_of_home", "").strip()
+
+
+def pet_values(data):
+    name, kind = data["name"].strip(), data["type"].strip()
+    if not name or not kind:
+        raise ValueError("Pet name and type are required.")
+    age = int(data["age"])
+    if age &lt; 0:
+        raise ValueError("Age must be non-negative.")
+    return name, age, kind, data.get("food", "").strip(), int(data["owner_id"])
+
+
+def create_owner(data):
+    with connection() as db:
+        return db.execute("INSERT INTO owner(name,city,type_of_home) VALUES (?,?,?)",
+                          owner_values(data)).lastrowid
+
+
+def update_owner(id, data):
+    with connection() as db:
+        result = db.execute("UPDATE owner SET name=?,city=?,type_of_home=? WHERE id=?",
+                            (*owner_values(data), id))
+        if not result.rowcount:
+            raise ValueError("That owner no longer exists. Refresh the page.")
+
+
+def delete_owner(id):
+    with connection() as db:
+        db.execute("DELETE FROM owner WHERE id=?", (id,))
+
+
+def create_pet(data):
+    with connection() as db:
+        return db.execute("""INSERT INTO pet(name,age,type,food,owner_id)
+                             VALUES (?,?,?,?,?)""", pet_values(data)).lastrowid
+
+
+def update_pet(id, data):
+    with connection() as db:
+        result = db.execute("""UPDATE pet SET name=?,age=?,type=?,food=?,owner_id=?
+                               WHERE id=?""", (*pet_values(data), id))
+        if not result.rowcount:
+            raise ValueError("That pet no longer exists. Refresh the page.")
+
+
+def delete_pet(id):
+    with connection() as db:
+        db.execute("DELETE FROM pet WHERE id=?", (id,))
+
+
+def seed_demo():
+    """Seed once into a completely empty database; never reset existing work."""
+    initialize()
+    with connection() as db:
+        if db.execute("SELECT count(*) FROM owner").fetchone()[0]:
+            return False
+        alex = db.execute("INSERT INTO owner(name,city,type_of_home) VALUES (?,?,?)",
+                          ("Alex", "Kent", "House")).lastrowid
+        jordan = db.execute("INSERT INTO owner(name,city,type_of_home) VALUES (?,?,?)",
+                            ("Jordan", "Akron", "Apartment")).lastrowid
+        db.executemany("INSERT INTO pet(name,age,type,food,owner_id) VALUES (?,?,?,?,?)",
+                       [("Casey", 3, "Dog", "Kibble", alex),
+                        ("Luna", 5, "Cat", "Wet food", jordan)])
+        return True
+
+
+if __name__ == "__main__":
+    print("Demo records created." if seed_demo() else "Existing records kept.")
+</code></pre></section>
+<section class="source-file" id="file-73747265616d6c69742f68656c6c6f5f776f726c642e7079" aria-labelledby="title-file-73747265616d6c69742f68656c6c6f5f776f726c642e7079" hidden><header class="file-header"><h2 id="title-file-73747265616d6c69742f68656c6c6f5f776f726c642e7079">streamlit/hello_world.py</h2></header><pre><code>"""Run with: streamlit run hello_world.py"""
+import streamlit as st
+
+st.title("Hello World")
+
+if "count" not in st.session_state:
+    st.session_state["count"] = 0
+
+if st.button("Increment"):
+    st.session_state["count"] += 1
+
+st.write("Count:", st.session_state["count"])
+</code></pre></section>
+<section class="source-file" id="file-73747265616d6c69742f726571756972656d656e74732e747874" aria-labelledby="title-file-73747265616d6c69742f726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-73747265616d6c69742f726571756972656d656e74732e747874">streamlit/requirements.txt</h2></header><pre><code>streamlit==1.65.0
+</code></pre></section>
+<section class="source-file" id="file-73747265616d6c69742f746573745f6170702e7079" aria-labelledby="title-file-73747265616d6c69742f746573745f6170702e7079" hidden><header class="file-header"><h2 id="title-file-73747265616d6c69742f746573745f6170702e7079">streamlit/test_app.py</h2></header><pre><code>"""Test the real database and Streamlit forms in temporary storage."""
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+from streamlit.testing.v1 import AppTest
+import database
+
+
+class PetsTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.env = patch.dict(os.environ, {"PETS_DATABASE": str(Path(self.temp.name) / "pets.db")})
+        self.env.start()
+        database.initialize()
+
+    def tearDown(self):
+        self.env.stop()
+        self.temp.cleanup()
+
+    def app(self):
+        at = AppTest.from_file(str(Path(__file__).with_name("app.py")), default_timeout=20).run()
+        self.assertFalse(at.exception)
+        return at
+
+    def button(self, at, label):
+        next(x for x in at.button if x.label == label).click().run()
+        self.assertFalse(at.exception)
+
+    def test_hello_world_counter(self):
+        path = str(Path(__file__).with_name("hello_world.py"))
+        at = AppTest.from_file(path).run()
+        self.assertEqual(at.session_state["count"], 0)
+        for expected in (1, 2, 3):
+            at.button[0].click().run()
+            self.assertEqual(at.session_state["count"], expected)
+        at.run()
+        self.assertEqual(at.session_state["count"], 3)
+        fresh = AppTest.from_file(path).run()
+        self.assertEqual(fresh.session_state["count"], 0)
+        self.assertFalse(at.exception)
+
+    def test_database_rules_and_persistence(self):
+        self.assertTrue(database.seed_demo())
+        self.assertFalse(database.seed_demo())
+        pet = database.get_pets()[0]
+        owner = pet["owner_id"]
+        with self.assertRaises(database.ConstraintError):
+            database.delete_owner(owner)
+        with self.assertRaises(database.ConstraintError):
+            database.create_pet(dict(pet, owner_id=99999))
+        with self.assertRaises(ValueError):
+            database.create_pet(dict(pet, age=-1))
+        database.update_pet(pet["id"], dict(pet, food="Rice", age=4))
+        database.initialize()
+        self.assertEqual(database.get_pet(pet["id"])["food"], "Rice")
+        database.delete_pet(pet["id"])
+        database.delete_owner(owner)
+        self.assertIsNone(database.get_owner(owner))
+
+    def test_ui_create_update_delete_pet(self):
+        database.seed_demo()
+        at = self.app()
+        at.sidebar.radio[1].set_value("Add").run()
+        at.text_input(key="pet_new_name").set_value("Milo")
+        at.text_input(key="pet_new_type").set_value("Cat")
+        at.text_input(key="pet_new_food").set_value("Fish")
+        at.number_input(key="pet_new_age").set_value(2)
+        self.button(at, "Save pet")
+        pet = next(x for x in database.get_pets() if x["name"] == "Milo")
+        at.run()  # A normal rerun must not insert another row.
+        self.assertEqual(len(database.get_pets()), 3)
+        at.sidebar.radio[1].set_value("Edit").run()
+        at.selectbox(key="Pets_selected").set_value(pet["id"]).run()
+        self.assertEqual(at.text_input(key=f"pet_{pet['id']}_name").value, "Milo")
+        at.text_input(key=f"pet_{pet['id']}_food").set_value("Chicken")
+        owners = database.get_owners()
+        at.selectbox(key=f"pet_{pet['id']}_owner").set_value(owners[1]["id"])
+        self.button(at, "Save pet")
+        updated = database.get_pet(pet["id"])
+        self.assertEqual(updated["food"], "Chicken")
+        self.assertEqual(updated["owner_id"], owners[1]["id"])
+        at.sidebar.radio[1].set_value("Delete").run()
+        self.assertTrue(next(x for x in at.button if x.label == "Delete record").disabled)
+        at.checkbox[0].check().run()
+        self.button(at, "Delete record")
+        self.assertIsNone(database.get_pet(pet["id"]))
+
+    def test_ui_owners_validation_and_restriction(self):
+        at = self.app()
+        at.sidebar.radio[1].set_value("Add").run()
+        self.assertTrue(any("Add an owner" in x.value for x in at.info))
+        at.sidebar.radio[0].set_value("Owners").run()
+        self.button(at, "Save owner")
+        self.assertTrue(at.error)
+        at.text_input(key="owner_new_name").set_value("Robin")
+        self.button(at, "Save owner")
+        owner = database.get_owners()[0]
+        at.sidebar.radio[1].set_value("Edit").run()
+        at.text_input(key=f"owner_{owner['id']}_city").set_value("Kent")
+        self.button(at, "Save owner")
+        self.assertEqual(database.get_owner(owner["id"])["city"], "Kent")
+        pet = database.create_pet({"name": "Spot", "type": "Dog", "age": 1,
+                                   "food": "Kibble", "owner_id": owner["id"]})
+        at.sidebar.radio[1].set_value("Delete").run()
+        at.checkbox[0].check().run()
+        self.button(at, "Delete record")
+        self.assertTrue(at.error)
+        self.assertIsNotNone(database.get_owner(owner["id"]))
+        database.delete_pet(pet)
+        self.button(at, "Delete record")
+        self.assertEqual(database.get_owners(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-10-alternative-platforms/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

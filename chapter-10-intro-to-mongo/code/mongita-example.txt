@@ -1,0 +1,76 @@
+$ pip3 install mongita
+Collecting mongita
+  Downloading mongita-1.2.0.tar.gz (54 kB)
+  Installing build dependencies ... done
+  Getting requirements to build wheel ... done
+  Preparing metadata (pyproject.toml) ... done
+Collecting pymongo<5.0,>=3.0 (from mongita)
+  Downloading pymongo-4.11.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (22 kB)
+Collecting sortedcontainers<3.0,>=2.3 (from mongita)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting dnspython<3.0.0,>=1.16.0 (from pymongo<5.0,>=3.0->mongita)
+  Downloading dnspython-2.7.0-py3-none-any.whl.metadata (5.8 kB)
+Downloading pymongo-4.11.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 42.8 MB/s eta 0:00:00
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Downloading dnspython-2.7.0-py3-none-any.whl (313 kB)
+Building wheels for collected packages: mongita
+  Building wheel for mongita (pyproject.toml) ... done
+  Created wheel for mongita: filename=mongita-1.2.0-py3-none-any.whl size=61313 sha256=d66120640505c536f50163b98e4d350bcd99e0f717b0c02592461d6c472c1e87
+  Stored in directory: /home/codespace/.cache/pip/wheels/c0/bf/0d/6a2a625c704f15045f2e0286f8a819f2104eeaefb92cd42a4f
+Successfully built mongita
+Installing collected packages: sortedcontainers, dnspython, pymongo, mongita
+Successfully installed dnspython-2.7.0 mongita-1.2.0 pymongo-4.11.2 sortedcontainers-2.4.0
+$ python
+Python 3.12.1 (main, Dec 12 2024, 22:30:56) [GCC 9.4.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from mongita import MongitaClientDisk
+>>> client = MongitaClientDisk()
+>>> hello_world_db = client.hello_world_db
+>>> mongoose_collection = hello_world_db.mongoose_collection
+>>> mongoose_collection.insert_many([{'name': 'Meercat', 'does_not_eat': 'Snakes'},
+...                                      {'name': 'Yellow mongoose', 'eats': 'Termites'}])
+<mongita.results.InsertManyResult object at 0x72f53e4d6240>
+>>> mongoose_collection.count_documents({})
+2
+>>> mongoose_collection.update_one({'name': 'Meercat'}, {'$set': {"weight": 2}})
+<mongita.results.UpdateResult object at 0x72f53d84a600>
+>>> mongoose_collection.find({'weight': {'$gt': 1}})
+<mongita.cursor.Cursor object at 0x72f53e25faa0>
+>>> cursor = mongoose_collection.find({'weight': {'$gt': 1}})
+>>> cursor
+<mongita.cursor.Cursor object at 0x72f53d881670>
+>>> list(cursor)
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}]
+>>> len(list(cursor))
+0
+>>> cursor = mongoose_collection.find({'weight': {'$gt': 1}})
+>>> mongoose_list = list(cursor)
+>>> len(mongoose_list)
+1
+>>> mongoose_list
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}]
+>>> list(mongoose_collection.find({'weight': {'$gt': 1}}))
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}]
+>>> list(mongoose_collection.find())
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}, {'name': 'Yellow mongoose', 'eats': 'Termites', '_id': ObjectId('67d8c61b5180a31695e90745')}]
+>>> list(mongoose_collection.find_one())
+['name', 'does_not_eat', '_id', 'weight']
+>>> list(mongoose_collection.find_one({}))
+['name', 'does_not_eat', '_id', 'weight']
+>>> list(mongoose_collection.find({}))
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}, {'name': 'Yellow mongoose', 'eats': 'Termites', '_id': ObjectId('67d8c61b5180a31695e90745')}]
+>>> list(mongoose_collection.find({'weight': {'$gt': 1}}))
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c61b5180a31695e90744'), 'weight': 2}]
+>>> mongoose_collection.delete_one({'name': 'Meercat'})
+<mongita.results.DeleteResult object at 0x72f53d8e0140>
+>>> list(mongoose_collection.find({'weight': {'$gt': 1}}))
+[]
+>>> mongoose_collection.insert_many([{'name': 'Meercat', 'does_not_eat': 'Snakes'}])
+<mongita.results.InsertManyResult object at 0x72f53d8e01a0>
+>>> list(mongoose_collection.find({'weight': {'$gt': 1}}))
+[]
+>>> list(mongoose_collection.find())
+[{'name': 'Yellow mongoose', 'eats': 'Termites', '_id': ObjectId('67d8c61b5180a31695e90745')}, {'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('67d8c9615180a31695e90748')}]
+>>>
+$ exit

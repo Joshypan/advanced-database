@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 10: Introduction to MongoDB</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="introduction-to-mongodb">Introduction to MongoDB</h1>
+<p>Documents and collections with Mongita</p>
+<p>Gregory S. DeLozier, PhD</p>
+</section>
+<section><h2 id="the-session">The Session</h2>
+<ul>
+<li>Store two documents</li>
+<li>Query and update fields</li>
+<li>Consume a cursor</li>
+<li>Delete, reinsert, and reopen</li>
+</ul>
+</section>
+<section><h2 id="where-the-database-runs">Where the Database Runs</h2>
+<p><img src="slide-assets/diagram-03.svg"
+alt="Where the Database Runs" /></p>
+<p><strong>Mongita runs inside the Python program.</strong></p>
+</section>
+<section><h2 id="two-documents">Two Documents</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>}</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Yellow mongoose&quot;</span>, <span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>}</span></code></pre></div>
+<p><strong>Must every document have the same fields?</strong></p>
+</section>
+<section><h2 id="database-collection-document">Database, Collection,
+Document</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Our example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Database</td>
+<td><code>hello_world_db</code></td>
+</tr>
+<tr>
+<td>Collection</td>
+<td><code>mongoose_collection</code></td>
+</tr>
+<tr>
+<td>Document</td>
+<td>One mongoose record</td>
+</tr>
+<tr>
+<td>Field</td>
+<td><code>name</code> or <code>eats</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="open-the-local-collection">Open the Local Collection</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> lesson <span class="im">import</span> <span class="ex">connect</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>client, mongoose_collection <span class="op">=</span> <span class="ex">connect</span>()</span></code></pre></div>
+<p>Storage: <code>code/data/mongita</code></p>
+<p><strong>Keep generated data out of Git.</strong></p>
+</section>
+<section><h2 id="insert-documents">Insert Documents</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>mongoose_collection.insert_many([</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Yellow mongoose&quot;</span>, <span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div>
+<p>Setup already ran this insertion.</p>
+</section>
+<section><h2 id="find-one-document">Find One Document</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>yellow <span class="op">=</span> mongoose_collection.find_one(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>}</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(yellow[<span class="st">&quot;name&quot;</span>])</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(yellow[<span class="st">&quot;_id&quot;</span>])</span></code></pre></div>
+<p>Result: a dictionary, or <strong>None</strong></p>
+</section>
+<section><h2 id="filters">Filters</h2>
+<table>
+<thead>
+<tr>
+<th>Filter</th>
+<th>Selects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{}</code></td>
+<td>All documents</td>
+</tr>
+<tr>
+<td><code>{"name": "Meercat"}</code></td>
+<td>This name</td>
+</tr>
+<tr>
+<td><code>{"weight": {"$gt": 1}}</code></td>
+<td>Numeric weight greater than 1</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="add-a-field-with-an-update">Add a Field with an Update</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> mongoose_collection.update_one(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;$set&quot;</span>: {<span class="st">&quot;weight&quot;</span>: <span class="dv">2</span>}},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Filter first. Change second.</p>
+<p><strong>Which document now has a weight?</strong></p>
+</section>
+<section><h2 id="query-results-through-a-cursor">Query Results Through a
+Cursor</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> mongoose_collection.find(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;weight&quot;</span>: {<span class="st">&quot;$gt&quot;</span>: <span class="dv">1</span>}}</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>mongooses <span class="op">=</span> <span class="bu">list</span>(cursor)</span></code></pre></div>
+<p><img src="slide-assets/diagram-11.svg"
+alt="Query Results Through a Cursor" /></p>
+</section>
+<section><h2 id="what-does-each-line-print">What Does Each Line Print?</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(mongooses))</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">list</span>(cursor))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(mongooses))</span></code></pre></div>
+<p><strong>1, then [], then 1</strong></p>
+</section>
+<section><h2 id="no-matching-document">No Matching Document</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>query <span class="op">=</span> {<span class="st">&quot;weight&quot;</span>: {<span class="st">&quot;$gt&quot;</span>: <span class="dv">300</span>}}</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mongoose_collection.find_one(query))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">list</span>(mongoose_collection.find(query)))</span></code></pre></div>
+<p><strong>None</strong> versus <strong>[]</strong></p>
+</section>
+<section><h2 id="an-identifier-in-a-web-address">An Identifier in a Web
+Address</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> bson.objectid <span class="im">import</span> ObjectId</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>identifier <span class="op">=</span> <span class="bu">str</span>(yellow[<span class="st">&quot;_id&quot;</span>])</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>found <span class="op">=</span> mongoose_collection.find_one(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;_id&quot;</span>: ObjectId(identifier)}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>Convert back to the stored value type.</strong></p>
+</section>
+<section><h2 id="delete-the-record-we-read">Delete the Record We Read</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>old <span class="op">=</span> mongoose_collection.find_one(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>}</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> mongoose_collection.delete_one(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;_id&quot;</span>: old[<span class="st">&quot;_id&quot;</span>]}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><code>result.deleted_count</code> is <strong>1</strong></p>
+</section>
+<section><h2 id="reinsert-the-same-name">Reinsert the Same Name</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>mongoose_collection.insert_one(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>}</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Before deletion</th>
+<th>After reinsertion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Old <code>_id</code></td>
+<td>New <code>_id</code></td>
+</tr>
+<tr>
+<td><code>weight</code> is 2</td>
+<td>No <code>weight</code> field</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="exit-and-reopen">Exit and Reopen</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>client.close()</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>exit()</span></code></pre></div>
+<p>Start Python again and open the same collection.</p>
+<p><strong>Which values survive?</strong></p>
+</section>
+<section><h2 id="the-application-connection">The Application Connection</h2>
+<p><img src="slide-assets/diagram-18.svg"
+alt="The Application Connection" /></p>
+<p><code>get_pet()</code> and <code>update_pet()</code> can keep their
+jobs.</p>
+</section>
+<section><h2 id="explore-the-stored-data">Explore the Stored Data</h2>
+<p>Add three records; give only two a weight.</p>
+<p>Update one. Repeat your query. Reopen Python.</p>
+<p><strong>Explain the results from the documents you find.</strong></p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

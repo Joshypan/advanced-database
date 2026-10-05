@@ -33,15 +33,55 @@ code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 <a href="../index.html">Back to chapter</a>
 <h1>Optimization: Code</h1>
 <div class="browser">
-<nav aria-label="Files"><ul><li><a href="#file-636f6d706172655f707974686f6e5f73716c2e7079">compare_python_sql.py</a></li>
+<nav aria-label="Files"><ul><li><a href="#file-636865636b5f64617461626173652e7079">check_database.py</a></li>
+<li><a href="#file-636f6d706172655f707974686f6e5f73716c2e7079">compare_python_sql.py</a></li>
 <li><a href="#file-6578706c6f72655f696e64657865732e7079">explore_indexes.py</a></li>
 <li><a href="#file-6672756974732e7079">fruits.py</a></li>
 <li><a href="#file-676f6f676c652d736c6964652d6c696e6b2e747874">google-slide-link.txt</a></li>
 <li><a href="#file-696d706f72745f696d64622e7079">import_imdb.py</a></li>
 <li><a href="#file-736368656d612e73716c">schema.sql</a></li>
 <li><a href="#file-73746f7265645f70726f6365647572652e73716c">stored_procedure.sql</a></li>
-<li><a href="#file-746573745f6f7074696d697a6174696f6e2e7079">test_optimization.py</a></li></ul></nav>
-<div class="viewer"><section class="source-file" id="file-636f6d706172655f707974686f6e5f73716c2e7079" aria-labelledby="title-file-636f6d706172655f707974686f6e5f73716c2e7079"><header class="file-header"><h2 id="title-file-636f6d706172655f707974686f6e5f73716c2e7079">compare_python_sql.py</h2></header><pre><code>"""Compare doing the work in Python with asking the database to do it.
+<li><a href="#file-746573745f6f7074696d697a6174696f6e2e7079">test_optimization.py</a></li>
+<li><a href="#file-7472795f616e5f696e6465782e7079">try_an_index.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-636865636b5f64617461626173652e7079" aria-labelledby="title-file-636865636b5f64617461626173652e7079"><header class="file-header"><h2 id="title-file-636865636b5f64617461626173652e7079">check_database.py</h2></header><pre><code>"""Confirm that imdb.db built correctly, read-only.
+
+Usage: python3 check_database.py [--database imdb.db]
+
+Opens the database with mode=ro, so this never creates or changes a file.
+Prints the table list, a row count for each table, and one joined row, so you
+can compare the counts against what import_imdb.py reported.
+"""
+import argparse
+from pathlib import Path
+import sqlite3
+
+
+def check(database):
+    print(Path(database).resolve())
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    print(connection.execute(
+        "select name from sqlite_master where type = 'table' order by name"
+    ).fetchall())
+    for table in ("titles", "ratings"):
+        count = connection.execute(f"select count(*) from {table}").fetchone()[0]
+        print(table, count)
+
+    print(connection.execute("""
+        select t.tconst, t.primary_title, t.start_year,
+               r.average_rating, r.num_votes
+        from titles t left join ratings r on r.tconst = t.tconst
+        where t.tconst = ?
+    """, ("tt0000001",)).fetchone())
+    connection.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Check that imdb.db built correctly.")
+    parser.add_argument("--database", default="imdb.db")
+    args = parser.parse_args()
+    check(args.database)
+</code></pre></section>
+<section class="source-file" id="file-636f6d706172655f707974686f6e5f73716c2e7079" aria-labelledby="title-file-636f6d706172655f707974686f6e5f73716c2e7079" hidden><header class="file-header"><h2 id="title-file-636f6d706172655f707974686f6e5f73716c2e7079">compare_python_sql.py</h2></header><pre><code>"""Compare doing the work in Python with asking the database to do it.
 
 Usage: python3 compare_python_sql.py [--database imdb.db]
 
@@ -746,6 +786,59 @@ class ImdbTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+</code></pre></section>
+<section class="source-file" id="file-7472795f616e5f696e6465782e7079" aria-labelledby="title-file-7472795f616e5f696e6465782e7079" hidden><header class="file-header"><h2 id="title-file-7472795f616e5f696e6465782e7079">try_an_index.py</h2></header><pre><code>"""Time one query before and after adding an index, by hand.
+
+Usage: python3 try_an_index.py [--database imdb.db]
+
+A small, readable version of the first step in explore_indexes.py: look up a
+title by primary_title, add an index on that column, and look it up again.
+Prints the plan and the time for both, and checks that the index did not
+change the answer. Leaves idx_titles_primary_title in place afterward.
+"""
+import argparse
+from time import perf_counter
+import sqlite3
+
+QUERY = "select tconst, start_year from titles where primary_title = ?"
+PARAMETERS = ("The Godfather",)
+
+
+def plan(connection, sql, parameters=()):
+    for row in connection.execute("explain query plan " + sql, parameters):
+        print(row[3])
+
+
+def timed(connection, sql, parameters=()):
+    started = perf_counter()
+    rows = connection.execute(sql, parameters).fetchall()
+    return rows, (perf_counter() - started) * 1000
+
+
+def main(database):
+    connection = sqlite3.connect(f"file:{database}?mode=rw", uri=True)
+    connection.execute("drop index if exists idx_titles_primary_title")
+
+    plan(connection, QUERY, PARAMETERS)
+    before, before_ms = timed(connection, QUERY, PARAMETERS)
+    print("Before:", before_ms, "ms")
+
+    connection.execute("create index idx_titles_primary_title on titles(primary_title)")
+    connection.commit()
+
+    plan(connection, QUERY, PARAMETERS)
+    after, after_ms = timed(connection, QUERY, PARAMETERS)
+    print("After:", after_ms, "ms")
+
+    print("Same rows:", sorted(before) == sorted(after))
+    connection.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Time a query before and after an index.")
+    parser.add_argument("--database", default="imdb.db")
+    args = parser.parse_args()
+    main(args.database)
 </code></pre></section></div>
 </div>
 <p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-09-optimization/code">course repository</a>.</p>

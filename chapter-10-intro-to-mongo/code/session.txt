@@ -1,0 +1,138 @@
+$ pip install mongita
+Collecting mongita
+  Downloading mongita-1.2.0.tar.gz (54 kB)
+  Installing build dependencies ... done
+  Getting requirements to build wheel ... done
+  Preparing metadata (pyproject.toml) ... done
+Collecting pymongo<5.0,>=3.0 (from mongita)
+  Downloading pymongo-4.16.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (10.0 kB)
+Collecting sortedcontainers<3.0,>=2.3 (from mongita)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting dnspython<3.0.0,>=2.6.1 (from pymongo<5.0,>=3.0->mongita)
+  Downloading dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+Downloading pymongo-4.16.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 30.6 MB/s  0:00:00
+Downloading dnspython-2.8.0-py3-none-any.whl (331 kB)
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Building wheels for collected packages: mongita
+  Building wheel for mongita (pyproject.toml) ... done
+  Created wheel for mongita: filename=mongita-1.2.0-py3-none-any.whl size=61345 sha256=e7079e880780f1049860726fd100cabb4f0dc4a41c67dcc58038281b81e6521c
+  Stored in directory: /home/codespace/.cache/pip/wheels/c0/bf/0d/6a2a625c704f15045f2e0286f8a819f2104eeaefb92cd42a4f
+Successfully built mongita
+Installing collected packages: sortedcontainers, dnspython, pymongo, mongita
+Successfully installed dnspython-2.8.0 mongita-1.2.0 pymongo-4.16.0 sortedcontainers-2.4.0
+$ python
+Python 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from mongita import MongitaClientDisk
+>>> client = MongitaClientDisk()
+>>> db = client.helloworld_db
+>>> mongoose_collection = helloworld_db.mongoose_collection
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'helloworld_db' is not defined
+>>> hello_world_db = client.helloworld_db
+>>> mongoose_collection = helloworld_db.mongoose_collection
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'helloworld_db' is not defined. Did you mean: 'hello_world_db'?
+>>> mongoose_collection = hello_world_db.mongoose_collection
+>>> mongoose_collection.insert_many([
+... {'name': 'Meercat', 'does_not_eat': 'Snakes'},
+... {'name': 'Yellow mongoose', 'eats': 'Termites'}
+... ])
+<mongita.results.InsertManyResult object at 0x7e62c334e450>
+>>> mongoose_collection.count_documents({})
+2
+>>> mongoose_collection.update_one({'name': 'Meercat'}, {'$set': {"weight": 2}})
+<mongita.results.UpdateResult object at 0x7e62c3130d70>
+>>> mongoose_collection.find({'weight': {'$gt': 1}})
+<mongita.cursor.Cursor object at 0x7e62c33dbd10>
+>>> cursor = mongoose_collection.find({'weight': {'$gt': 1}})
+>>> cursor
+<mongita.cursor.Cursor object at 0x7e62c3e718e0>
+>>> list(cursor)
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}]
+>>> for item in cursor:
+...   print(item)
+...
+>>> cursor = mongoose_collection.find({'weight': {'$gt': 1}})
+>>> for item in cursor:
+...   print(item)
+...
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}
+>>> cursor = mongoose_collection.find({'weight': {'$gt': 1}})
+>>> mongooses = list(cursor)
+>>> len(mongooses)
+1
+>>> for item in mongooses:
+...   print(item)
+...
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}
+>>> for item in mongooses:
+...   print(item)
+...
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}
+>>> cursor = list(mongoose_collection.find({'weight': {'$gt': 1}}))
+>>> cursor
+[{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}]
+>>> mongoose_collection.find_one()
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}
+>>> mongoose_collection.find_one({"eats":'Termites'})
+{'name': 'Yellow mongoose', 'eats': 'Termites', '_id': ObjectId('69c4617c762b2683dbe52b1a')}
+>>> x = mongoose_collection.find_one({"eats":'Termites'})
+>>> x
+{'name': 'Yellow mongoose', 'eats': 'Termites', '_id': ObjectId('69c4617c762b2683dbe52b1a')}
+>>> x["_id"]
+ObjectId('69c4617c762b2683dbe52b1a')
+>>> x._id
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'dict' object has no attribute '_id'
+>>> str(x["_id"])
+'69c4617c762b2683dbe52b1a'
+>>> s=str(x["_id"])
+>>> s
+'69c4617c762b2683dbe52b1a'
+>>> ObjectId(s)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'ObjectId' is not defined. Did you mean: 'object'?
+>>> from bson import objectid.ObjectId
+  File "<stdin>", line 1
+    from bson import objectid.ObjectId
+                             ^
+SyntaxError: invalid syntax
+>>> from bson.objectid import ObjectId
+>>> ObjectId(s)
+ObjectId('69c4617c762b2683dbe52b1a')
+>>> mongoose_collection.find_one({'name': 'Meercat'})
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c4617c762b2683dbe52b19'), 'weight': 2}
+>>> mongoose_collection.delete_one({'name': 'Meercat'})
+<mongita.results.DeleteResult object at 0x7e62c3e71a30>
+>>> mongoose_collection.find_one({'name': 'Meercat'})
+>>> mongoose_collection.insert_one({{'name': 'Meercat', 'does_not_eat': 'Snakes'})
+  File "<stdin>", line 1
+    mongoose_collection.insert_one({{'name': 'Meercat', 'does_not_eat': 'Snakes'})
+                                                                                 ^
+SyntaxError: closing parenthesis ')' does not match opening parenthesis '{'
+>>> mongoose_collection.insert_one({'name': 'Meercat', 'does_not_eat': 'Snakes'})
+<mongita.results.InsertOneResult object at 0x7e62c315ffb0>
+>>> mongoose_collection.find_one({'name': 'Meercat'})
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c464ad762b2683dbe52b1d')}
+>>> mongoose_collection.find_one({'weight': {'$gt': 1}})
+>>> mongoose_collection.update_one({'name': 'Meercat'}, {'$set': {"weight": 2}})
+<mongita.results.UpdateResult object at 0x7e62c315fe90>
+>>> mongoose_collection.find_one({'weight': {'$gt': 1}})
+{'name': 'Meercat', 'does_not_eat': 'Snakes', '_id': ObjectId('69c464ad762b2683dbe52b1d'), 'weight': 2}
+>>> mongoose_collection.find_one({'weight': {'$gt': 300}})
+>>> print(mongoose_collection.find_one({'weight': {'$gt': 300}}))
+None
+>>> print(mongoose_collection.find({'weight': {'$gt': 300}}))
+<mongita.cursor.Cursor object at 0x7e62c315ff50>
+>>> list(print(mongoose_collection.find({'weight': {'$gt': 300}})))
+<mongita.cursor.Cursor object at 0x7e62c315fe90>
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: 'NoneType' object is not iterable
+>>>

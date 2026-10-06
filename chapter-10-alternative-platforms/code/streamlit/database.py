@@ -45,12 +45,23 @@ def initialize():
             );
         """)
 
-
+#show owners
 def get_owners():
     with connection() as db:
         return [dict(x) for x in db.execute("SELECT * FROM owner ORDER BY name, id")]
 
-
+#get food table
+def get_foods():
+    with connection() as db:
+        return [dict(x) for x in db.execute("""
+            SELECT pet.id AS id,
+                    pet.food AS food,
+                    pet.name AS pet_name,
+                    owner.name AS owner_name
+            FROM pet
+            JOIN owner ON pet.owner_id = owner.id
+        """)]
+#show pets
 def get_pets():
     with connection() as db:
         return [dict(x) for x in db.execute("""

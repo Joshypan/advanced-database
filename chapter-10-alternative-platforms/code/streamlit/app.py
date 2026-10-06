@@ -10,7 +10,7 @@ st.title("Pets and Owners")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
 
-
+#saving operating
 def save(operation, message):
     """Report a data error, or refresh the page after a successful write."""
     try:
@@ -74,16 +74,25 @@ def owner_form(owner=None):
         else:
             save(lambda: database.create_owner(data), "Owner added.")
 
-
-page = st.sidebar.radio("Manage", ["Pets", "Owners"])
+#sidebar options
+page = st.sidebar.radio("Manage", ["Pets", "Owners", "Foods"])
+#actions for forms
 action = st.sidebar.radio("Action", ["List", "Add", "Edit", "Delete"])
-records = database.get_pets() if page == "Pets" else database.get_owners()
+#decides what to display
+if page == "Pets": 
+    records = database.get_pets() 
+elif page == "Owners":
+    records = database.get_owners()
+else:
+    records = database.get_foods()
+
 st.header(page)
 if records:
     st.dataframe(records, hide_index=True, width="stretch")
-else:
+elif action == "List":
     st.info("No records yet.")
 
+#will shos owner form for food since we have not created a food form yet
 if action == "Add":
     pet_form() if page == "Pets" else owner_form()
 elif action in ("Edit", "Delete"):

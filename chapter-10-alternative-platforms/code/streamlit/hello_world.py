@@ -9,4 +9,7 @@ if "count" not in st.session_state:
 if st.button("Increment"):
     st.session_state["count"] += 1
 
+if st.button("Decrement"):
+    st.session_state["count"] -= 1
+
 st.write("Count:", st.session_state["count"])

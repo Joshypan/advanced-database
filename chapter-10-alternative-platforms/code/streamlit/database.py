@@ -43,6 +43,7 @@ def initialize():
                 food TEXT,
                 owner_id INTEGER NOT NULL REFERENCES owner(id) ON DELETE RESTRICT
             );
+            CREATE INDEX IF NOT EXISTS idx_pet_owner_id ON pet(owner_id);
         """)
 
 #show owners

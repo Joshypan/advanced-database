@@ -7,200 +7,307 @@
 <p>Documents and collections with Mongita</p>
 <p>Gregory S. DeLozier, PhD</p>
 </section>
-<section><h2 id="the-session">The Session</h2>
-<ul>
-<li>Store two documents</li>
-<li>Query and update fields</li>
-<li>Consume a cursor</li>
-<li>Delete, reinsert, and reopen</li>
-</ul>
+<section><h2 id="what-is-a-document-database">What Is a Document Database?</h2>
+<p>A record has <strong>named fields and values</strong>.</p>
+<p>Values can include lists and nested records.</p>
+<p>A collection holds related documents.</p>
 </section>
-<section><h2 id="where-the-database-runs">Where the Database Runs</h2>
-<p><img src="slide-assets/diagram-03.svg"
-alt="Where the Database Runs" /></p>
-<p><strong>Mongita runs inside the Python program.</strong></p>
-</section>
-<section><h2 id="two-documents">Two Documents</h2>
+<section><h2 id="one-record-several-kinds-of-value">One Record, Several Kinds of
+Value</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>}</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Yellow mongoose&quot;</span>, <span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>}</span></code></pre></div>
-<p><strong>Must every document have the same fields?</strong></p>
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Casey&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;age&quot;</span>: <span class="dv">3</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;vaccinations&quot;</span>: [<span class="st">&quot;rabies&quot;</span>, <span class="st">&quot;distemper&quot;</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;details&quot;</span>: {<span class="st">&quot;color&quot;</span>: <span class="st">&quot;brown&quot;</span>, <span class="st">&quot;weight_kg&quot;</span>: <span class="dv">18</span>}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p><strong>Scalar, list, nested document.</strong></p>
 </section>
-<section><h2 id="database-collection-document">Database, Collection,
-Document</h2>
+<section><h2 id="the-database-can-read-the-fields">The Database Can Read the
+Fields</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pets.find({<span class="st">&quot;age&quot;</span>: {<span class="st">&quot;$gt&quot;</span>: <span class="dv">2</span>}})</span></code></pre></div>
+<p>Ask for pets older than two.</p>
+<p><strong>Query the data inside the document.</strong></p>
+</section>
+<section><h2 id="flexible-fields-still-need-meaning">Flexible Fields Still Need
+Meaning</h2>
 <table>
 <thead>
 <tr>
-<th>Level</th>
-<th>Our example</th>
+<th>Choice</th>
+<th>Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Database</td>
-<td><code>hello_world_db</code></td>
+<td>Required value</td>
+<td>Every pet needs a name</td>
 </tr>
 <tr>
-<td>Collection</td>
-<td><code>mongoose_collection</code></td>
+<td>Consistent type</td>
+<td>Age is a number</td>
 </tr>
 <tr>
-<td>Document</td>
-<td>One mongoose record</td>
+<td>Optional field</td>
+<td>Weight may be absent</td>
 </tr>
 <tr>
-<td>Field</td>
-<td><code>name</code> or <code>eats</code></td>
+<td>Shared units</td>
+<td>Weight is recorded in kilograms</td>
 </tr>
 </tbody>
 </table>
+<p><strong>Flexibility leaves us with design decisions.</strong></p>
 </section>
-<section><h2 id="open-the-local-collection">Open the Local Collection</h2>
+<section><h2 id="the-idea-predates-mongodb">The Idea Predates MongoDB</h2>
+<table>
+<thead>
+<tr>
+<th>Milestone</th>
+<th>Idea</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lotus Notes, 1989</td>
+<td>Documents and forms for shared work</td>
+</tr>
+<tr>
+<td>Apache CouchDB, 2008</td>
+<td>Document database becomes an Apache project</td>
+</tr>
+<tr>
+<td>MongoDB, 2009</td>
+<td>Launch of a new document server</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MongoDB did not invent document databases.</strong></p>
+</section>
+<section><h2 id="mongodb-arrives">MongoDB Arrives</h2>
+<p><strong>2007:</strong> 10gen is founded.</p>
+<p><strong>2009:</strong> MongoDB launches.</p>
+<p>Documents familiar to application programmers.</p>
+<p>A server designed for growing applications.</p>
+</section>
+<section><h2 id="a-common-reference-point">A Common Reference Point</h2>
+<p>MongoDB’s vocabulary travels:</p>
+<p><strong>collections, documents, filters, updates,
+ObjectIds</strong>.</p>
+<p>Other products offer compatibility with its interface.</p>
+</section>
+<section><h2 id="related-interfaces-different-systems">Related Interfaces,
+Different Systems</h2>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>What it provides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MongoDB</td>
+<td>The database server</td>
+</tr>
+<tr>
+<td>Amazon DocumentDB</td>
+<td>A service with MongoDB API compatibility</td>
+</tr>
+<tr>
+<td>Mongita</td>
+<td>A local Python library with a subset of the API</td>
+</tr>
+<tr>
+<td>CouchDB</td>
+<td>A document database with its own interface</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Check the operations your application uses.</strong></p>
+</section>
+<section><h2 id="sometimes-tables-are-constraining">Sometimes Tables Are
+Constraining</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Glucose</th>
+<th>Sodium</th>
+<th>Body region</th>
+<th>Report</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blood chemistry</td>
+<td>92</td>
+<td>140</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>X-ray</td>
+<td>-</td>
+<td>-</td>
+<td>Left wrist</td>
+<td>Text</td>
+</tr>
+</tbody>
+</table>
+<p>One column for every possible result?</p>
+</section>
+<section><h2 id="keep-the-fields-that-apply">Keep the Fields That Apply</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;test&quot;</span>: <span class="st">&quot;Blood chemistry&quot;</span>, <span class="st">&quot;patient_id&quot;</span>: <span class="st">&quot;P17&quot;</span>,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a> <span class="st">&quot;results&quot;</span>: {<span class="st">&quot;glucose_mg_dl&quot;</span>: <span class="dv">92</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;sodium_mmol_l&quot;</span>: <span class="dv">140</span>}}</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>{<span class="st">&quot;test&quot;</span>: <span class="st">&quot;X-ray&quot;</span>, <span class="st">&quot;patient_id&quot;</span>: <span class="st">&quot;P17&quot;</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a> <span class="st">&quot;results&quot;</span>: {<span class="st">&quot;body_region&quot;</span>: <span class="st">&quot;Left wrist&quot;</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>             <span class="st">&quot;report&quot;</span>: <span class="st">&quot;Report text&quot;</span>}}</span></code></pre></div>
+<p><strong>Different fields. Shared meaning for common
+fields.</strong></p>
+</section>
+<section><h2 id="a-purchase-and-its-line-items">A Purchase and Its Line
+Items</h2>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Purchase</td>
+<td>Receipt identifier, date</td>
+</tr>
+<tr>
+<td>Purchase item</td>
+<td>Purchase, SKU, quantity, price paid</td>
+</tr>
+<tr>
+<td>Product</td>
+<td>SKU, description, current price</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A receipt normally needs all its line items.</strong></p>
+</section>
+<section><h2 id="store-the-items-with-the-purchase">Store the Items with the
+Purchase</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>purchase <span class="op">=</span> {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;purchase_id&quot;</span>: <span class="st">&quot;R1042&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;items&quot;</span>: [</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>        {<span class="st">&quot;sku&quot;</span>: <span class="st">&quot;MILK-1L&quot;</span>, <span class="st">&quot;quantity&quot;</span>: <span class="dv">2</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot;unit_price_cents&quot;</span>: <span class="dv">249</span>},</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        {<span class="st">&quot;sku&quot;</span>: <span class="st">&quot;BREAD-W&quot;</span>, <span class="st">&quot;quantity&quot;</span>: <span class="dv">1</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>         <span class="st">&quot;unit_price_cents&quot;</span>: <span class="dv">325</span>},</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p><strong>One document includes the line items.</strong></p>
+</section>
+<section><h2 id="what-belongs-together">What Belongs Together?</h2>
+<p>Purchase-specific line items: <strong>embed</strong>.</p>
+<p>Shared product catalog: <strong>reference by SKU</strong>.</p>
+<p>What changes when the query is total sales for one SKU?</p>
+</section>
+<section><h2 id="a-short-interactive-session">A Short Interactive Session</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> lesson <span class="im">import</span> <span class="ex">connect</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>client, mongoose_collection <span class="op">=</span> <span class="ex">connect</span>()</span></code></pre></div>
-<p>Storage: <code>code/data/mongita</code></p>
-<p><strong>Keep generated data out of Git.</strong></p>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> bson.objectid <span class="im">import</span> ObjectId</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>client, animals <span class="op">=</span> <span class="ex">connect</span>()</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> animals.insert_one(</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Casey&quot;</span>, <span class="st">&quot;type&quot;</span>: <span class="st">&quot;dog&quot;</span>})</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>id_text <span class="op">=</span> <span class="bu">str</span>(result.inserted_id)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> {<span class="st">&quot;_id&quot;</span>: ObjectId(id_text)}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(animals.find_one(key))</span></code></pre></div>
 </section>
-<section><h2 id="insert-documents">Insert Documents</h2>
+<section><h2 id="change-it-then-remove-it">Change It, Then Remove It</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>mongoose_collection.insert_many([</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>},</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Yellow mongoose&quot;</span>, <span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>},</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div>
-<p>Setup already ran this insertion.</p>
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>animals.update_one(key, {<span class="st">&quot;$set&quot;</span>: {<span class="st">&quot;age&quot;</span>: <span class="dv">3</span>}})</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(animals.find_one(key))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>animals.delete_one(key)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(animals.find_one(key))  <span class="co"># None</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>client.close()</span></code></pre></div>
+<p><strong>The same identifier selects the same document.</strong></p>
 </section>
-<section><h2 id="find-one-document">Find One Document</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>yellow <span class="op">=</span> mongoose_collection.find_one(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;eats&quot;</span>: <span class="st">&quot;Termites&quot;</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(yellow[<span class="st">&quot;name&quot;</span>])</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(yellow[<span class="st">&quot;_id&quot;</span>])</span></code></pre></div>
-<p>Result: a dictionary, or <strong>None</strong></p>
-</section>
-<section><h2 id="filters">Filters</h2>
+<section><h2 id="back-to-database.py">Back to database.py</h2>
 <table>
 <thead>
 <tr>
-<th>Filter</th>
-<th>Selects</th>
+<th>App calls</th>
+<th>Layer uses</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>{}</code></td>
-<td>All documents</td>
+<td><code>create_pet(data)</code></td>
+<td><code>insert_one()</code></td>
 </tr>
 <tr>
-<td><code>{"name": "Meercat"}</code></td>
-<td>This name</td>
+<td><code>get_pet(id)</code></td>
+<td><code>find_one()</code></td>
 </tr>
 <tr>
-<td><code>{"weight": {"$gt": 1}}</code></td>
-<td>Numeric weight greater than 1</td>
+<td><code>update_pet(id, data)</code></td>
+<td><code>update_one()</code> with <code>$set</code></td>
+</tr>
+<tr>
+<td><code>delete_pet(id)</code></td>
+<td><code>delete_one()</code></td>
 </tr>
 </tbody>
 </table>
+<p><strong>Keep the application’s database functions.</strong></p>
 </section>
-<section><h2 id="add-a-field-with-an-update">Add a Field with an Update</h2>
+<section><h2 id="ids-are-now-strings-in-the-app">IDs Are Now Strings in the
+App</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> mongoose_collection.update_one(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>},</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;$set&quot;</span>: {<span class="st">&quot;weight&quot;</span>: <span class="dv">2</span>}},</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<p>Filter first. Change second.</p>
-<p><strong>Which document now has a weight?</strong></p>
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Database operation returns an ObjectId.</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> pets_collection.insert_one(pet)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Application receives its text representation.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> <span class="bu">str</span>(result.inserted_id)</span></code></pre></div>
+<p>Integer row ID becomes <strong>24-character hexadecimal
+text</strong>.</p>
 </section>
-<section><h2 id="query-results-through-a-cursor">Query Results Through a
-Cursor</h2>
+<section><h2 id="convert-back-for-the-lookup">Convert Back for the Lookup</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> mongoose_collection.find(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;weight&quot;</span>: {<span class="st">&quot;$gt&quot;</span>: <span class="dv">1</span>}}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>mongooses <span class="op">=</span> <span class="bu">list</span>(cursor)</span></code></pre></div>
-<p><img src="slide-assets/diagram-11.svg"
-alt="Query Results Through a Cursor" /></p>
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_pet(<span class="bu">id</span>):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    object_id <span class="op">=</span> _to_object_id(<span class="bu">id</span>, <span class="st">&quot;pet id&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    pet <span class="op">=</span> pets_collection.find_one({<span class="st">&quot;_id&quot;</span>: object_id})</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> pet <span class="kw">is</span> <span class="va">None</span>:</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">None</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pet_to_dict(pet)</span></code></pre></div>
+<p><strong>String in. ObjectId for the query. String out.</strong></p>
 </section>
-<section><h2 id="what-does-each-line-print">What Does Each Line Print?</h2>
+<section><h2 id="update-through-the-layer">Update Through the Layer</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(mongooses))</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">list</span>(cursor))</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(mongooses))</span></code></pre></div>
-<p><strong>1, then [], then 1</strong></p>
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> update_pet(<span class="bu">id</span>, data):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    object_id, _ <span class="op">=</span> _require_existing_pet(<span class="bu">id</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    pet <span class="op">=</span> _normalize_pet_data(data)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    pets_collection.update_one(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        {<span class="st">&quot;_id&quot;</span>: object_id}, {<span class="st">&quot;$set&quot;</span>: pet})</span></code></pre></div>
+<p><strong>Validate the values, then save the fields.</strong></p>
 </section>
-<section><h2 id="no-matching-document">No Matching Document</h2>
+<section><h2 id="run-the-pets-application">Run the Pets Application</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>query <span class="op">=</span> {<span class="st">&quot;weight&quot;</span>: {<span class="st">&quot;$gt&quot;</span>: <span class="dv">300</span>}}</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(mongoose_collection.find_one(query))</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">list</span>(mongoose_collection.find(query)))</span></code></pre></div>
-<p><strong>None</strong> versus <strong>[]</strong></p>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> chapter-11-intro-to-mongo/code/pets-app</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> <span class="at">--app</span> app run <span class="at">--debug</span></span></code></pre></div>
+<p>Create an owner, then a pet. Follow its Update link.</p>
+<p><strong>Find the ObjectId string in the address.</strong></p>
 </section>
-<section><h2 id="an-identifier-in-a-web-address">An Identifier in a Web
-Address</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> bson.objectid <span class="im">import</span> ObjectId</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>identifier <span class="op">=</span> <span class="bu">str</span>(yellow[<span class="st">&quot;_id&quot;</span>])</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>found <span class="op">=</span> mongoose_collection.find_one(</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;_id&quot;</span>: ObjectId(identifier)}</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<p><strong>Convert back to the stored value type.</strong></p>
-</section>
-<section><h2 id="delete-the-record-we-read">Delete the Record We Read</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>old <span class="op">=</span> mongoose_collection.find_one(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> mongoose_collection.delete_one(</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;_id&quot;</span>: old[<span class="st">&quot;_id&quot;</span>]}</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<p><code>result.deleted_count</code> is <strong>1</strong></p>
-</section>
-<section><h2 id="reinsert-the-same-name">Reinsert the Same Name</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>mongoose_collection.insert_one(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">&quot;name&quot;</span>: <span class="st">&quot;Meercat&quot;</span>, <span class="st">&quot;does_not_eat&quot;</span>: <span class="st">&quot;Snakes&quot;</span>}</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Before deletion</th>
-<th>After reinsertion</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Old <code>_id</code></td>
-<td>New <code>_id</code></td>
-</tr>
-<tr>
-<td><code>weight</code> is 2</td>
-<td>No <code>weight</code> field</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section><h2 id="exit-and-reopen">Exit and Reopen</h2>
-<div class="sourceCode" id="cb1"><pre
-class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>client.close()</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>exit()</span></code></pre></div>
-<p>Start Python again and open the same collection.</p>
-<p><strong>Which values survive?</strong></p>
-</section>
-<section><h2 id="the-application-connection">The Application Connection</h2>
-<p><img src="slide-assets/diagram-18.svg"
-alt="The Application Connection" /></p>
-<p><code>get_pet()</code> and <code>update_pet()</code> can keep their
-jobs.</p>
-</section>
-<section><h2 id="explore-the-stored-data">Explore the Stored Data</h2>
-<p>Add three records; give only two a weight.</p>
-<p>Update one. Repeat your query. Reopen Python.</p>
-<p><strong>Explain the results from the documents you find.</strong></p>
+<section><h2 id="what-changed">What Changed?</h2>
+<p>Database operations and identifier conversion.</p>
+<p>The app still calls <strong>the database layer</strong>.</p>
+<p>Where would an owner check belong?</p>
 </section></div></div>
 <script src="slide-assets/reveal.js"></script>
 <script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>

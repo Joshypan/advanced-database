@@ -1,0 +1,34 @@
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bootstrap page</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+</head>
+<body style="background-color: lightblue;">
+<h2>Food Table:</h2>
+<table class="table center" cellpadding="5" cellspacing="5" border="5">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Brand</th>
+        <th>Calories</th>
+    </tr>
+    {% for food in foods %}
+    <tr>
+        <td>{{ food['id'] }}</td>
+        <td>{{ food['name'] }}</td>
+        <td>{{ food['type'] }}</td>
+        <td>{{ food['brand'] }}</td>
+        <td>{{ food['calories'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<hr />
+<a href="/create_food">Create New Food</a>
+<a href="/list">Back to Pets List</a>
+<hr />
+</body>
+</html>

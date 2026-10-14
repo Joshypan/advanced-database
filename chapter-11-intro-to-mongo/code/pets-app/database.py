@@ -24,8 +24,10 @@ DATA_DIR = Path(__file__).resolve().parent / "data" / "mongita"
 
 client = None
 db = None
+#tables, collection in Mongo
 owners_collection = None
 pets_collection = None
+foods_collection = None
 
 
 class NotFoundError(LookupError):
@@ -37,7 +39,7 @@ class ConstraintError(ValueError):
 
 
 def initialize(database_name="pets", client_factory=MongitaClientDisk, data_dir=None):
-    global client, db, owners_collection, pets_collection
+    global client, db, owners_collection, pets_collection, foods_collection
 
     if client_factory is MongitaClientMemory and MongitaClientMemory is None:
         if pytest is not None:
@@ -55,6 +57,7 @@ def initialize(database_name="pets", client_factory=MongitaClientDisk, data_dir=
     db = client[database_name]
     owners_collection = db.owners
     pets_collection = db.pets
+    foods_collection = db.foods
 
 
 def test_initialize_sets_globals():
@@ -63,6 +66,7 @@ def test_initialize_sets_globals():
     assert db is not None
     assert owners_collection is not None
     assert pets_collection is not None
+    assert foods_collection is not None
     close_connection()
 
 
@@ -77,19 +81,21 @@ def setup_database(database_name="pets", client_factory=MongitaClientDisk, data_
     initialize(database_name, client_factory=client_factory, data_dir=data_dir)
     owners_collection.count_documents({})
     pets_collection.count_documents({})
-
+    foods_collection.count_documents({})
 
 def test_setup_database_creates_collections():
     setup_database("pytest_setup", client_factory=MongitaClientMemory)
     assert owners_collection is not None
     assert pets_collection is not None
+    assert foods_collection is not None
     assert owners_collection.count_documents({}) == 0
     assert pets_collection.count_documents({}) == 0
+    assert foods_collection.count_documents({}) == 0
     close_connection()
 
 
 def close_connection():
-    global client, db, owners_collection, pets_collection
+    global client, db, owners_collection, pets_collection, foods_collection
 
     if client is not None:
         try:
@@ -100,6 +106,7 @@ def close_connection():
     db = None
     owners_collection = None
     pets_collection = None
+    foods_collection = None
 
 
 def test_close_connection_resets_globals():
@@ -109,6 +116,7 @@ def test_close_connection_resets_globals():
     assert db is None
     assert owners_collection is None
     assert pets_collection is None
+    assert foods_collection is None
 
 
 def _normalize_age(value):
@@ -145,6 +153,15 @@ def _require_owner(owner_id):
         raise ConstraintError("owner_id does not reference an existing owner.")
     return object_id
 
+#food is optional, so we allow None or empty string, but if a food_id is provided, it must reference an existing food.
+def _require_food(food_id):
+    if food_id is None or (isinstance(food_id, str) and not food_id.strip()):
+        return None  # Food is optional; allow None or empty string.
+    object_id = _to_object_id(food_id, "food_id")
+    food = foods_collection.find_one({"_id": object_id})
+    if food is None:
+        raise ConstraintError("food_id does not reference an existing food.")
+    return object_id
 
 def _require_existing_pet(id):
     object_id = _to_object_id(id, "pet id")
@@ -161,6 +178,10 @@ def _require_existing_owner(id):
         raise NotFoundError("owner not found.")
     return object_id, owner
 
+#add food data to pet creation and update
+# it works now because the database.py file has been updated to include food in the _normalize_pet_data function and in the pet_to_dict function. 
+#The create_pet and update_pet functions also handle the food field correctly.
+#normalize_pet_data makes sure that the food field is optional and can be None if not provided.
 
 def _normalize_pet_data(data):
     owner_id = data.get("owner_id")
@@ -170,6 +191,7 @@ def _normalize_pet_data(data):
     return {
         "name": _require_text(data.get("name"), "name"),
         "type": _require_text(data.get("type"), "type"),
+        "food_id": _require_food(data.get("food_id")),
         "age": _normalize_age(data.get("age")),
         "owner_id": _require_owner(owner_id),
     }
@@ -182,6 +204,23 @@ def _normalize_owner_data(data):
         "type_of_home": (data.get("type_of_home") or "").strip() or None,
     }
 
+def _normalize_food_data(data):
+    return {
+        "name": _require_text(data.get("name"), "name"),
+        "type": (data.get("type") or "").strip() or None,
+        "brand": (data.get("brand") or "").strip() or None,
+        # Normalizing calories to an integer or None
+        "calories": _normalize_age(data.get("calories")),
+    }
+
+def food_to_dict(food):
+    return {
+        "id": str(food["_id"]),
+        "name": food["name"],
+        "type": food.get("type"),
+        "brand": food.get("brand"),
+        "calories": food.get("calories"),
+    }
 
 def pet_to_dict(pet):
     # Keep BSON identifiers inside this layer; the app receives ordinary strings.
@@ -189,6 +228,9 @@ def pet_to_dict(pet):
         "id": str(pet["_id"]),
         "name": pet["name"],
         "type": pet["type"],
+        #checks if the pet has a food_id and converts it to a string, otherwise sets it to None
+        #this shows on the list.html page as N/A if the pet has no food_id
+        "food_id": str(pet["food_id"]) if pet.get("food_id") else None,
         "age": pet["age"],
         "owner_id": str(pet["owner_id"]),
     }
@@ -199,6 +241,7 @@ def test_pet_to_dict():
         "_id": ObjectId("67d8c61b5180a31695e90744"),
         "name": "meercat",
         "type": "mammal",
+        "food_id": "67d8c61b5180a31695e90747",
         "age": 2,
         "owner_id": ObjectId("67d8c61b5180a31695e90745"),
     }
@@ -249,10 +292,10 @@ def _seed_test_database(database_name="pytest_seed"):
         owner_ids[owner["name"]] = owner_id
 
     pets = [
-        {"name": "dorothy", "type": "dog", "age": 9, "owner_id": owner_ids["greg"]},
-        {"name": "suzy", "type": "mouse", "age": 9, "owner_id": owner_ids["greg"]},
-        {"name": "casey", "type": "dog", "age": 9, "owner_id": owner_ids["greg"]},
-        {"name": "heidi", "type": "cat", "age": 15, "owner_id": owner_ids["david"]},
+        {"name": "dorothy", "type": "dog", "food_id": "67d8c61b5180a31695e90747", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "suzy", "type": "mouse", "food_id": "67d8c61b5180a31695e90748", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "casey", "type": "dog", "food_id": "67d8c61b5180a31695e90747", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "heidi", "type": "cat", "food_id": "67d8c61b5180a31695e90749", "age": 15, "owner_id": owner_ids["david"]},
     ]
     for pet in pets:
         create_pet(pet)
@@ -263,6 +306,14 @@ def _seed_test_database(database_name="pytest_seed"):
 def get_pets():
     return [pet_to_dict(pet) for pet in pets_collection.find()]
 
+def get_foods():
+    return [food_to_dict(food) for food in foods_collection.find()]
+
+def test_get_foods():
+    _seed_test_database()
+    foods = get_foods()
+    assert type(foods) is list
+    assert len(foods) >= 1
 
 def test_get_pets():
     owner_ids = _seed_test_database()
@@ -270,7 +321,7 @@ def test_get_pets():
     assert type(pets) is list
     assert len(pets) >= 1
     assert type(pets[0]) is dict
-    for key in ["id", "name", "type", "age", "owner_id"]:
+    for key in ["id", "name", "type", "food", "age", "owner_id"]:
         assert key in pets[0]
     assert type(pets[0]["id"]) is str
     assert type(pets[0]["owner_id"]) is str
@@ -305,6 +356,10 @@ def create_pet(data):
     # insert_one returns an ObjectId; expose its 24-character text representation.
     return str(result.inserted_id)
 
+def create_food(data):
+    food = _normalize_food_data(data)
+    result = foods_collection.insert_one(food)
+    return str(result.inserted_id)
 
 def test_create_pet_and_get_pet():
     owner_ids = _seed_test_database()
@@ -313,6 +368,7 @@ def test_create_pet_and_get_pet():
             "name": "walter",
             "age": "2",
             "type": "mouse",
+            "food": "cheese",
             "owner_id": owner_ids["greg"],
         }
     )
@@ -323,6 +379,7 @@ def test_create_pet_and_get_pet():
     assert pet["name"] == "walter"
     assert pet["age"] == 2
     assert pet["type"] == "mouse"
+    assert pet["food"] == "cheese"
     assert pet["owner_id"] == owner_ids["greg"]
 
 
@@ -334,6 +391,7 @@ def test_create_pet_requires_name():
                 "name": "",
                 "age": 1,
                 "type": "cat",
+                "food": "fish",
                 "owner_id": owner_ids["greg"],
             }
         )
@@ -347,6 +405,7 @@ def test_create_pet_requires_type():
                 "name": "no-type",
                 "age": 1,
                 "type": "",
+                "food": "fish",
                 "owner_id": owner_ids["greg"],
             }
         )
@@ -355,7 +414,7 @@ def test_create_pet_requires_type():
 def test_create_pet_requires_owner():
     _seed_test_database()
     with pytest.raises(ValueError, match="owner_id is required"):
-        create_pet({"name": "ghost", "age": 1, "type": "cat", "owner_id": ""})
+        create_pet({"name": "ghost", "age": 1, "type": "cat", "food": "fish", "owner_id": ""})
 
 
 def test_create_pet_rejects_unknown_owner():
@@ -366,6 +425,7 @@ def test_create_pet_rejects_unknown_owner():
                 "name": "ghost",
                 "age": 1,
                 "type": "cat",
+                "food": "fish",
                 "owner_id": "000000000000000000000000",
             }
         )
@@ -388,13 +448,14 @@ def test_update_pet():
     pet = get_pets()[0]
     update_pet(
         pet["id"],
-        {"name": "updated", "age": "8", "type": "dog", "owner_id": owner_ids["david"]},
+        {"name": "updated", "age": "8", "type": "dog", "food": "kibble", "owner_id": owner_ids["david"]},
     )
     updated = get_pet(pet["id"])
     assert updated is not None
     assert updated["name"] == "updated"
     assert updated["age"] == 8
     assert updated["type"] == "dog"
+    assert updated["food"] == "kibble"
     assert updated["owner_id"] == owner_ids["david"]
 
 
@@ -403,7 +464,7 @@ def test_update_pet_rejects_missing_pet():
     with pytest.raises(NotFoundError, match="pet not found"):
         update_pet(
             "67d8c61b5180a31695e907ff",
-            {"name": "updated", "age": 8, "type": "dog", "owner_id": owner_ids["greg"]},
+            {"name": "updated", "age": 8, "type": "dog", "food": "kibble", "owner_id": owner_ids["greg"]},
         )
 
 
@@ -415,7 +476,7 @@ def delete_pet(id):
 def test_delete_pet():
     owner_ids = _seed_test_database()
     new_id = create_pet(
-        {"name": "delete_me", "age": 3, "type": "fish", "owner_id": owner_ids["greg"]}
+        {"name": "delete_me", "age": 3, "type": "fish", "food": "fish", "owner_id": owner_ids["greg"]}
     )
     delete_pet(new_id)
     assert get_pet(new_id) is None
@@ -537,7 +598,7 @@ def test_delete_owner_then_pet_succeeds():
     _seed_test_database()
     owner_id = create_owner({"name": "solo", "city": "Akron", "type_of_home": "house"})
     pet_id = create_pet(
-        {"name": "onepet", "age": 3, "type": "cat", "owner_id": owner_id}
+        {"name": "onepet", "age": 3, "type": "cat", "food": "cheese", "owner_id": owner_id}
     )
 
     with pytest.raises(ConstraintError):

@@ -1,0 +1,24 @@
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bootstrap page</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+</head>
+<body>
+    This is the create template.
+    <form action="/create_food" method="post">
+        <hr />
+        <p>Name:<input name="name" /></p>
+        <p>Type:<input name="type" /></p>
+        <p>Brand:<input name="brand" /></p>
+        <p>Calories:<input name="calories" /></p>
+        <hr />
+        <button type="submit">Create</button>
+        <a href="/list_foods">Cancel</a>
+        <hr />
+    </form>
+</body>
+
+</html>

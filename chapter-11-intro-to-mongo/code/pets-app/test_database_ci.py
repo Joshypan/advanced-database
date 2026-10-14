@@ -155,6 +155,7 @@ def test_owner_delete_is_restricted_by_pets(client):
             "name": "dorothy",
             "age": "9",
             "type": "dog",
+            "food": "kibble",
             "owner_id": owner_id,
         },
     )
@@ -195,7 +196,7 @@ def test_disk_identifiers_and_reopen(tmp_path):
     try:
         owner_id = database.create_owner({"name": "Alex"})
         pet_id = database.create_pet({
-            "name": "Casey", "type": "dog", "age": "3", "owner_id": owner_id,
+            "name": "Casey", "type": "dog", "age": "3", "food": "kibble", "owner_id": owner_id,
         })
         assert isinstance(pet_id, str) and len(pet_id) == 24
         stored = database.pets_collection.find_one({"_id": ObjectId(pet_id)})
@@ -205,7 +206,7 @@ def test_disk_identifiers_and_reopen(tmp_path):
         database.setup_database("pets", data_dir=tmp_path / "mongita")
         assert database.get_pet(pet_id)["owner_id"] == owner_id
         database.update_pet(pet_id, {
-            "name": "Casey", "type": "dog", "age": "4", "owner_id": owner_id,
+            "name": "Casey", "type": "dog", "age": "4", "food": "kibble", "owner_id": owner_id,
         })
         assert database.get_pet(pet_id)["age"] == 4
         database.delete_pet(pet_id)
@@ -223,7 +224,7 @@ def test_id_routes_reject_bad_and_missing_ids(client):
 def test_invalid_pet_age_create_and_update(client, age):
     create_owner(client)
     owner_id = get_owner_ids()["greg"]
-    data = {"name": "Casey", "type": "dog", "age": age, "owner_id": owner_id}
+    data = {"name": "Casey", "type": "dog", "age": age, "food": "kibble", "owner_id": owner_id}
     response = client.post("/create", data=data)
     assert response.status_code == 400
     assert database.get_pets() == []
@@ -237,5 +238,5 @@ def test_invalid_pet_age_create_and_update(client, age):
 def test_valid_pet_age_defaults_and_conversion(client, age):
     create_owner(client)
     owner_id = get_owner_ids()["greg"]
-    pet_id = database.create_pet({"name": "Casey", "type": "dog", "age": age, "owner_id": owner_id})
+    pet_id = database.create_pet({"name": "Casey", "type": "dog", "age": age, "food": "kibble", "owner_id": owner_id})
     assert database.get_pet(pet_id)["age"] == (3 if age == "3" else 0)

@@ -1,7 +1,11 @@
 <html>
-
-<head></head>
-
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bootstrap page</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+</head>
 <body>
     This is the update template.
     <form action="/update/{{data['id']}}" method="post">
@@ -9,6 +13,15 @@
         <p>Name:<input name="name" value="{{data['name']}}" /></p>
         <p>Age:<input name="age" value="{{data['age']}}" /></p>
         <p>Type:<input name="type" value="{{data['type']}}" /></p>
+        <p>Food:
+            <select name="food_id">
+                {% for food in foods %}
+                <option value="{{ food['id'] }}" {% if food['id'] == data['food_id'] %}selected{% endif %}>
+                    {{ food['name'] }}
+                </option>
+                {% endfor %}
+            </select>
+        </p>
         <p>Owner:
             <select name="owner_id">
                 {% for owner in owners %}

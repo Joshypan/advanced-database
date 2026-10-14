@@ -1,7 +1,11 @@
 <html>
-
-<head></head>
-
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bootstrap page</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+</head>
 <body>
     This is the create template.
     <form action="/create" method="post">
@@ -9,6 +13,14 @@
         <p>Name:<input name="name" /></p>
         <p>Age:<input name="age" /></p>
         <p>Type:<input name="type" /></p>
+        <p>Food:
+            <select name="food_id">
+                <option value="">-- Select a Food --</option>
+                {% for food in foods %}
+                <option value="{{ food['id'] }}">{{ food['name'] }}</option>
+                {% endfor %}
+            </select>
+        </p>
         <p>Owner:
             <select name="owner_id">
                 <option value="">-- Select an Owner --</option>

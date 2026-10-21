@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 13: Moving to MongoDB Atlas</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="moving-to-mongodb-atlas">Moving to MongoDB Atlas</h1>
+<p>The Pets application with a remote database</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+</section>
+<section><h2 id="the-database-moves">The Database Moves</h2>
+<table>
+<thead>
+<tr>
+<th>Mongita</th>
+<th>MongoDB Atlas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Embedded Python database</td>
+<td>Hosted MongoDB server</td>
+</tr>
+<tr>
+<td>Local disk directory</td>
+<td>Remote cluster</td>
+</tr>
+<tr>
+<td>Mongita client</td>
+<td>PyMongo driver</td>
+</tr>
+<tr>
+<td>Local file access</td>
+<td>Network connection and login</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The app still calls <code>database.py</code>.</strong></p>
+</section>
+<section><h2 id="where-the-code-runs">Where the Code Runs</h2>
+<p><img src="slide-assets/diagram-03.svg"
+alt="Where the Code Runs" /></p>
+</section>
+<section><h2 id="atlas-names">Atlas Names</h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Meaning in this exercise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Atlas account</td>
+<td>Login to the management website</td>
+</tr>
+<tr>
+<td>Project</td>
+<td><code>Advanced-Database</code></td>
+</tr>
+<tr>
+<td>Cluster</td>
+<td><code>course-pets</code></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><code>pets</code></td>
+</tr>
+<tr>
+<td>Database user</td>
+<td><code>user</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="log-in-and-create-a-project">Log In and Create a Project</h2>
+<p>Open <strong>https://cloud.mongodb.com/</strong>.</p>
+<p>Sign in or create an account.</p>
+<p>Choose <strong>New Project</strong> and name it
+<strong>Advanced-Database</strong>.</p>
+</section>
+<section><h2 id="project-ready-for-a-cluster">Project Ready for a Cluster</h2>
+<p><img src="slide-assets/atlas-new-project.png"
+alt="The new Advanced-Database project" /></p>
+</section>
+<section><h2 id="select-the-free-tier">Select the Free Tier</h2>
+<p><img src="slide-assets/atlas-free-cluster-setup.png"
+alt="Free cluster settings" /></p>
+</section>
+<section><h2 id="wait-for-the-cluster">Wait for the Cluster</h2>
+<p><img src="slide-assets/atlas-cluster-ready.png"
+alt="The active course-pets cluster" /></p>
+</section>
+<section><h2 id="database-user-privileges">Database User Privileges</h2>
+<p><img src="slide-assets/atlas-user-privileges.png"
+alt="Specific readWrite privilege for pets" /></p>
+</section>
+<section><h2 id="the-classroom-login">The Classroom Login</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Username</td>
+<td><code>user</code></td>
+</tr>
+<tr>
+<td>Password</td>
+<td><code>alphabeta123</code></td>
+</tr>
+<tr>
+<td>Role</td>
+<td><code>readWrite</code> on <code>pets</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Temporary, shared exercise credentials.</strong></p>
+</section>
+<section><h2 id="allow-classroom-connections">Allow Classroom Connections</h2>
+<p><img src="slide-assets/atlas-network-entry.png"
+alt="Add the network access entry" /></p>
+</section>
+<section><h2 id="select-the-python-driver">Select the Python Driver</h2>
+<p><img src="slide-assets/atlas-python-connection.png"
+alt="Python connection settings" /></p>
+</section>
+<section><h2 id="the-classroom-connection-string">The Classroom Connection
+String</h2>
+<pre class="text"><code>mongodb+srv://user:alphabeta123@course-pets.wwzybni.mongodb.net/</code></pre>
+<p><strong>This walkthrough deployment has been deleted.</strong></p>
+<p>Use your own cluster hostname and credentials in the commands.</p>
+</section>
+<section><h2 id="prepare-python">Prepare Python</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> chapter-13-mongo-atlas/code</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span></code></pre></div>
+<p>Python <strong>3.10 or newer</strong>. Dependencies: Flask and
+PyMongo.</p>
+</section>
+<section><h2 id="set-the-connection-environment">Set the Connection
+Environment</h2>
+<p>Bash:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">MONGODB_URI</span><span class="op">=</span><span class="st">&#39;mongodb+srv://user:alphabeta123@course-pets.wwzybni.mongodb.net/&#39;</span></span></code></pre></div>
+<p>PowerShell:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">$env</span><span class="op">:</span><span class="va">MONGODB_URI</span> <span class="op">=</span> <span class="st">&#39;mongodb+srv://user:alphabeta123@course-pets.wwzybni.mongodb.net/&#39;</span></span></code></pre></div>
+<p>Substitute your own connection string. Use <strong>the same
+terminal</strong>.</p>
+</section>
+<section><h2 id="check-the-connection">Check the Connection</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> access-atlas-demo.py</span></code></pre></div>
+<pre class="text"><code>Connected to MongoDB; pets database is readable.
+Owners: 0
+Pets: 0</code></pre>
+<p><strong>Existing records produce different counts.</strong></p>
+</section>
+<section><h2 id="inside-the-connection-code">Inside the Connection Code</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>uri <span class="op">=</span> os.environ.get(<span class="st">&quot;MONGODB_URI&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> MongoClient(</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    uri, server_api<span class="op">=</span>ServerApi(<span class="st">&quot;1&quot;</span>),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    serverSelectionTimeoutMS<span class="op">=</span><span class="dv">10000</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>client.admin.command(<span class="st">&quot;ping&quot;</span>)</span></code></pre></div>
+<p><strong>Connect at startup and check the result.</strong></p>
+</section>
+<section><h2 id="select-the-collections">Select the Collections</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db <span class="op">=</span> client[database_name]</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>owners_collection <span class="op">=</span> db.owners</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>pets_collection <span class="op">=</span> db.pets</span></code></pre></div>
+<p><code>setup_database("pets")</code> opens the application
+database.</p>
+<p><strong>IDs still cross the layer as strings.</strong></p>
+</section>
+<section><h2 id="run-the-pets-application">Run the Pets Application</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> <span class="at">--app</span> app run <span class="at">--debug</span></span></code></pre></div>
+<p>Open the local address printed by Flask.</p>
+<p>Create <strong>Alex</strong>, then <strong>Casey</strong>, age
+<strong>3</strong>, owned by Alex.</p>
+</section>
+<section><h2 id="a-save-reaches-atlas">A Save Reaches Atlas</h2>
+<p><img src="slide-assets/diagram-20.svg"
+alt="A Save Reaches Atlas" /></p>
+</section>
+<section><h2 id="inspect-the-stored-documents">Inspect the Stored Documents</h2>
+<p>In Atlas, open <strong>Data Explorer</strong>.</p>
+<p>Select <strong>course-pets</strong>, then <strong>pets</strong>.</p>
+<p>Inspect the <strong>owners</strong> and <strong>pets</strong>
+collections.</p>
+<p><strong>Casey’s <code>owner_id</code> matches Alex’s
+<code>_id</code>.</strong></p>
+</section>
+<section><h2 id="integrity-rules-stay-in-our-layer">Integrity Rules Stay in Our
+Layer</h2>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Code responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nonblank name and type</td>
+<td>Validate before saving</td>
+</tr>
+<tr>
+<td>Non-negative age</td>
+<td>Reject invalid values</td>
+</tr>
+<tr>
+<td>Pet must have an owner</td>
+<td>Look up the owner</td>
+</tr>
+<tr>
+<td>Owner with pets cannot be deleted</td>
+<td>Check dependent pets</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Atlas does not infer these application rules.</strong></p>
+</section>
+<section><h2 id="mongodb-supports-acid-transactions">MongoDB Supports ACID
+Transactions</h2>
+<p><strong>Atomicity, Consistency, Isolation, Durability</strong></p>
+<p>A transaction can group changes across documents and collections.</p>
+<p>Our Pets app currently sends <strong>separate
+operations</strong>.</p>
+</section>
+<section><h2 id="eventual-consistency">Eventual Consistency</h2>
+<p>The primary accepts writes; secondaries replicate them.</p>
+<p>A secondary may temporarily show an older value.</p>
+<p><strong>When writes stop and replication proceeds, copies
+converge.</strong></p>
+</section>
+<section><h2 id="verify-the-same-behavior">Verify the Same Behavior</h2>
+<p>Create <strong>Blair</strong>. Reassign Casey to Blair, age
+<strong>4</strong>.</p>
+<p>Submit age <strong>-5</strong>: the saved age remains
+<strong>4</strong>.</p>
+<p>Try deleting Blair: the app rejects it while Casey refers to
+Blair.</p>
+</section>
+<section><h2 id="a-new-connection-does-not-copy-data">A New Connection Does Not
+Copy Data</h2>
+<p>The new connection opens the <strong>Atlas database</strong>.</p>
+<p>Existing Mongita files stay on the local computer.</p>
+<p><strong>Moving old records needs a separate data-copy
+program.</strong></p>
+</section>
+<section><h2 id="check-failures-at-the-right-place">Check Failures at the Right
+Place</h2>
+<table>
+<thead>
+<tr>
+<th>Result</th>
+<th>First check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing <code>MONGODB_URI</code></td>
+<td>Current terminal environment</td>
+</tr>
+<tr>
+<td>Authentication failed</td>
+<td>Database username and password</td>
+</tr>
+<tr>
+<td>Connection timeout</td>
+<td>Network access list and hostname</td>
+</tr>
+<tr>
+<td>Invalid age or missing owner</td>
+<td>Form values and app rules</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="clean-up-after-the-exercise">Clean Up After the Exercise</h2>
+<p>Delete the temporary database user.</p>
+<p>Remove the <strong><code>0.0.0.0/0</code></strong> network entry.</p>
+<p>Or terminate the exercise cluster when its data is no longer
+needed.</p>
+<p><strong>Do not leave shared classroom access active in
+service.</strong></p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

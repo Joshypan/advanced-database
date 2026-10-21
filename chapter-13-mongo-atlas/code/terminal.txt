@@ -1,0 +1,76 @@
+$ python
+Python 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from database.py import *
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ModuleNotFoundError: No module named 'database.py'; 'database' is not a package
+>>> from database import *
+>>> exit()
+$ python
+Python 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from database import *
+>>> initialize()
+>>> setup_database()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/workspaces/advanced-database/topic-12-mongo-atlas/database.py", line 47, in setup_database
+    initialize(database_name)
+TypeError: initialize() takes 0 positional arguments but 1 was given
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> exit()
+$ python
+Python 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> setup_database()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'setup_database' is not defined
+>>> from database import *
+>>> setup_database()
+>>> get_pets()
+[]
+>>> create_owner({"name": "greg", "city": "Portland", "type_of_home": "condo"})
+'69d6d7a926809a4d6baa3281'
+>>> get_owners()
+[{'id': '69d6d7a926809a4d6baa3281', 'name': 'greg', 'city': 'Portland', 'type_of_home': 'condo'}]
+>>> create_owner({"name": "solo", "city": "Akron", "type_of_home": "house"})
+'69d6d82126809a4d6baa3282'
+>>> get_owners()
+[{'id': '69d6d7a926809a4d6baa3281', 'name': 'greg', 'city': 'Portland', 'type_of_home': 'condo'}, {'id': '69d6d82126809a4d6baa3282', 'name': 'solo', 'city': 'Akron', 'type_of_home': 'house'}]
+>>> create_pet({"name": "dorothy", "type": "dog", "age": 9, "owner_id": owner_ids["greg"]})
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'owner_ids' is not defined
+>>> owners = [
+...         {"name": "greg", "city": "Portland", "type_of_home": "condo"},
+...         {"name": "david", "city": "Seattle", "type_of_home": "farm"},
+...     ]
+>>>     owner_ids = {}
+  File "<stdin>", line 1
+    owner_ids = {}
+IndentationError: unexpected indent
+>>>     for owner in owners:
+  File "<stdin>", line 1
+    for owner in owners:
+IndentationError: unexpected indent
+>>>         owner_id = create_owner(owner)
+  File "<stdin>", line 1
+    owner_id = create_owner(owner)
+IndentationError: unexpected indent
+>>>         owner_ids[owner["name"]] = owner_id
+  File "<stdin>", line 1
+    owner_ids[owner["name"]] = owner_id
+IndentationError: unexpected indent
+>>>         {"name": "david", "city": "Seattle", "type_of_home": "farm"}
+KeyboardInterrupt
+>>> owner_id = create_owner({"name": "david", "city": "Seattle", "type_of_home": "farm"})
+>>> owner_id
+'69d6d8cb26809a4d6baa3283'
+>>> create_pet({"name": "dorothy", "type": "dog", "age": 9, "owner_id": owner_id})
+'69d6d8ef26809a4d6baa3284'
+>>> 

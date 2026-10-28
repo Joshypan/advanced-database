@@ -1,0 +1,138 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>slides-15-02-dashboard-and-aggregates</title><link rel="stylesheet" href="slide-assets/reveal.css"><link rel="stylesheet" href="slide-assets/slides.css"></head><body><div class="reveal"><div class="slides"><section><h1 id="an-imdb-dashboard">An IMDb Dashboard</h1>
+<p>Lecture 2: Streamlit and SQL aggregates</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+</section><section><h2 id="today">Today</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td>Store rows and execute SQL</td>
+</tr>
+<tr>
+<td>database.py</td>
+<td>Own queries and connections</td>
+</tr>
+<tr>
+<td>app_basics.py</td>
+<td>Controls, tables, charts</td>
+</tr>
+</tbody>
+</table>
+</section><section><h2 id="exercise-resume-and-verify">Exercise: Resume and Verify</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> start-postgres.sh</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DATABASE_URL</span><span class="op">=</span>postgresql://student@127.0.0.1:5433/imdb</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> check_setup.py</span></code></pre></div>
+<p><strong>Expected: imported tables and indexes are still
+present.</strong></p>
+</section><section><h2 id="exercise-open-the-starter">Exercise: Open the Starter</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">streamlit</span> run app_basics.py <span class="at">--server.address</span> 0.0.0.0</span></code></pre></div>
+<p><strong>Open web port 8501. Leave database port 5433
+local.</strong></p>
+<p>Starter: title search and yearly summaries.</p>
+<p>Full app: Search, Notes, and graphical Reports.</p>
+</section><section><h2 id="one-parameterized-query">One Parameterized Query</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>connection.execute(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SELECT primary_title FROM imdb_course.titles &quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;WHERE start_year = </span><span class="sc">%s</span><span class="st">&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1994</span>,),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>SQL text and parameter values travel separately.</strong></p>
+</section><section><h2 id="connection-and-display-lifecycle">Connection and Display
+Lifecycle</h2>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Query call</td>
+<td>Open a connection; execute; close</td>
+</tr>
+<tr>
+<td>Interface rerun</td>
+<td>Reuse cached results when available</td>
+</tr>
+<tr>
+<td>Refresh button</td>
+<td>Clear the result cache</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cache rows; keep connection ownership simple.</strong></p>
+</section><section><h2 id="a-join-produces-movie-rows">A Join Produces Movie Rows</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> t.primary_title, t.start_year,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>       r.average_rating, r.num_votes</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> imdb_course.titles t</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span> imdb_course.ratings r <span class="kw">USING</span> (title_id)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> r.num_votes <span class="op">&gt;=</span> <span class="dv">1000</span>;</span></code></pre></div>
+<p><strong>The inner join leaves out unrated titles.</strong></p>
+</section><section><h2 id="grouping-produces-yearly-rows">Grouping Produces Yearly
+Rows</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> t.start_year, <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">AS</span> movies,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">avg</span>(r.average_rating), <span class="dv">2</span>) <span class="kw">AS</span> mean_rating</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> imdb_course.titles t</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span> imdb_course.ratings r <span class="kw">USING</span> (title_id)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> t.start_year <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">AND</span> r.num_votes <span class="op">&gt;=</span> <span class="dv">1000</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span> <span class="kw">BY</span> t.start_year</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> t.start_year;</span></code></pre></div>
+</section><section><h2 id="what-the-dashboard-measures">What the Dashboard Measures</h2>
+<table>
+<thead>
+<tr>
+<th>Output</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>movies</td>
+<td>Qualifying titles in this sample</td>
+</tr>
+<tr>
+<td>mean_rating</td>
+<td>Equal-weight mean of title ratings</td>
+</tr>
+<tr>
+<td>start_year</td>
+<td>Reported release year</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Source order and filtering affect the chart.</strong></p>
+</section><section><h2 id="where-and-having">WHERE and HAVING</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Keep rows before grouping.</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> r.num_votes <span class="op">&gt;=</span> <span class="dv">1000</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- Keep groups after aggregation.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">HAVING</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="dv">5</span></span></code></pre></div>
+<p><strong>A group threshold belongs after GROUP BY.</strong></p>
+</section><section><h2 id="exercise-a-runtime-control">Exercise: A Runtime Control</h2>
+<p>Files: <code>database.py</code>, <code>app_basics.py</code></p>
+<p>Add a minimum runtime to <code>yearly_summary</code>.</p>
+<p>Pass it from a Streamlit number input and include it in the cache
+key.</p>
+<p><strong>Expected: short movies leave the yearly totals.</strong></p>
+</section><section><h2 id="the-working-boundary">The Working Boundary</h2>
+<p>SQL determines which rows and summaries mean something.</p>
+<p>The data layer returns them.</p>
+<p>Streamlit makes the result inspectable.</p>
+<p><strong>Next: rank and compare rows without collapsing
+them.</strong></p>
+</section></div></div><script src="slide-assets/reveal.js"></script><script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:"none"});</script></body></html>

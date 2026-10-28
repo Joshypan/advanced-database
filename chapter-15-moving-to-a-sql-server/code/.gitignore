@@ -1,0 +1,4 @@
+data/
+.private*
+.venv/
+__pycache__/

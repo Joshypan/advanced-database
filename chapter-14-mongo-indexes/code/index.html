@@ -890,7 +890,7 @@ def describe(label, collection, query):
     print("  plan stages:", " -&gt; ".join(stages) or "(none found)")
     if "COLLSCAN" in stages:
         print("  result: reads the whole collection")
-    elif "IXSCAN" in stages:
+    elif any("IXSCAN" in stage for stage in stages):
         print("  result: uses an index")
     if stats:
         print("  documents examined:", stats.get("totalDocsExamined"))

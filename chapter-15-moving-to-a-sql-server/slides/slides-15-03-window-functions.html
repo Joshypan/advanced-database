@@ -1,0 +1,177 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>slides-15-03-window-functions</title><link rel="stylesheet" href="slide-assets/reveal.css"><link rel="stylesheet" href="slide-assets/slides.css"></head><body><div class="reveal"><div class="slides"><section><h1 id="comparing-rows-with-sql">Comparing Rows with SQL</h1>
+<p>Lecture 3: Rankings, changes, and running totals</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+</section><section><h2 id="today">Today</h2>
+<table>
+<thead>
+<tr>
+<th>Calculation</th>
+<th>Dashboard result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dense_rank</td>
+<td>Rating levels within each year</td>
+</tr>
+<tr>
+<td>lag</td>
+<td>Change from a preceding yearly row</td>
+</tr>
+<tr>
+<td>sum over a frame</td>
+<td>Running movie count</td>
+</tr>
+</tbody>
+</table>
+</section><section><h2 id="exercise-run-the-small-examples">Exercise: Run the Small
+Examples</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DATABASE_URL</span><span class="op">=</span>postgresql://student@127.0.0.1:5433/imdb</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="st">&quot;</span><span class="va">$DATABASE_URL</span><span class="st">&quot;</span> <span class="at">-f</span> lecture-03-windows.sql</span></code></pre></div>
+<p><strong>The VALUES examples run without changing stored
+data.</strong></p>
+</section><section><h2 id="group-by-and-over">GROUP BY and OVER</h2>
+<table>
+<thead>
+<tr>
+<th>GROUP BY</th>
+<th>Window function with OVER</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One output row per group</td>
+<td>One output row per input row</td>
+</tr>
+<tr>
+<td>Summarize a year</td>
+<td>Compare a movie with its year</td>
+</tr>
+<tr>
+<td>count, avg</td>
+<td>dense_rank, lag, windowed sum</td>
+</tr>
+</tbody>
+</table>
+</section><section><h2 id="rank-within-each-year">Rank Within Each Year</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dense_rank</span>() <span class="kw">OVER</span> (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">PARTITION</span> <span class="kw">BY</span> t.start_year</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span> <span class="kw">BY</span> r.average_rating <span class="kw">DESC</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> year_rank</span></code></pre></div>
+<p><strong>Partition selects the group. Window ordering selects rank
+order.</strong></p>
+</section><section><h2 id="ties-are-part-of-the-result">Ties Are Part of the Result</h2>
+<table>
+<thead>
+<tr>
+<th>Film</th>
+<th>Rating</th>
+<th>dense_rank</th>
+<th>row_number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alpha</td>
+<td>8.0</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Beta</td>
+<td>8.0</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gamma</td>
+<td>7.0</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top three rating levels can contain more than three
+films.</strong></p>
+</section><section><h2 id="filter-after-ranking">Filter After Ranking</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> ranked <span class="kw">AS</span> (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> t.primary_title,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>         <span class="fu">dense_rank</span>() <span class="kw">OVER</span> (</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>           <span class="kw">PARTITION</span> <span class="kw">BY</span> start_year</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>           <span class="kw">ORDER</span> <span class="kw">BY</span> average_rating <span class="kw">DESC</span>) <span class="kw">AS</span> year_rank</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">FROM</span> imdb_course.titles t</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">JOIN</span> imdb_course.ratings r <span class="kw">USING</span> (title_id)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> ranked <span class="kw">WHERE</span> year_rank <span class="op">&lt;=</span> <span class="dv">3</span>;</span></code></pre></div>
+</section><section><h2 id="previous-row-is-not-always-previous-year">Previous Row Is Not
+Always Previous Year</h2>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Movies</th>
+<th>Previous year</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2000</td>
+<td>3</td>
+<td>NULL</td>
+<td>NULL</td>
+</tr>
+<tr>
+<td>2002</td>
+<td>1</td>
+<td>2000</td>
+<td>-2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>lag follows the rows present in the result.</strong></p>
+</section><section><h2 id="a-running-total-has-a-frame">A Running Total Has a Frame</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(movies) <span class="kw">OVER</span> (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span> <span class="kw">BY</span> start_year</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="kw">UNBOUNDED</span> <span class="kw">PRECEDING</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>             <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> running_total</span></code></pre></div>
+<p><strong>Counts 3 and 1 produce running totals 3 and 4.</strong></p>
+</section><section><h2 id="exercise-open-the-extended-app">Exercise: Open the Extended
+App</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">streamlit</span> run app.py <span class="at">--server.address</span> 0.0.0.0</span></code></pre></div>
+<p>Run lecture-03-windows.sql to inspect shared ranks.</p>
+<p>Reports: cumulative counts and yearly differences.</p>
+<p><strong>Changing the vote threshold changes the
+population.</strong></p>
+</section><section><h2 id="exercise-exactly-three-movies">Exercise: Exactly Three
+Movies</h2>
+<p>File: <code>database.py</code>, function:
+<code>ranked_movies</code></p>
+<p>Use <code>row_number</code> with rating, votes, and title identifier
+in its ordering.</p>
+<p>Keep rows numbered 1 through 3 within each year.</p>
+<p><strong>Expected: at most three qualifying movies per
+year.</strong></p>
+</section><section><h2 id="exercise-each-movie-and-its-year">Exercise: Each Movie and Its
+Year</h2>
+<p>Add
+<code>avg(average_rating) OVER (PARTITION BY start_year)</code>.</p>
+<p>Display the movie rating, its year mean, and the difference.</p>
+<p><strong>Expected: movie rows remain visible beside their comparison
+value.</strong></p>
+</section><section><h2 id="from-files-to-an-analytic-application">From Files to an Analytic
+Application</h2>
+<p>Import once. Verify the data.</p>
+<p>Express each calculation in SQL.</p>
+<p>Keep query logic in the data layer.</p>
+<p><strong>Use the dashboard to inspect what the query actually
+means.</strong></p>
+</section></div></div><script src="slide-assets/reveal.js"></script><script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:"none"});</script></body></html>

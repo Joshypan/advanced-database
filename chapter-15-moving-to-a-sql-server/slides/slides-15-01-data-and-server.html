@@ -1,0 +1,190 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>slides-15-01-data-and-server</title><link rel="stylesheet" href="slide-assets/reveal.css"><link rel="stylesheet" href="slide-assets/slides.css"></head><body><div class="reveal"><div class="slides"><section><h1 id="moving-to-a-sql-server">Moving to a SQL Server</h1>
+<p>Lecture 1: IMDb, PostgreSQL, and indexes</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+</section><section><h2 id="today">Today</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Working result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Get IMDb</td>
+<td>Two checked gzip archives</td>
+</tr>
+<tr>
+<td>Start PostgreSQL</td>
+<td>A successful client query</td>
+</tr>
+<tr>
+<td>Import CSV</td>
+<td>Tables with keys and indexes</td>
+</tr>
+<tr>
+<td>Inspect a plan</td>
+<td>Actual server work</td>
+</tr>
+</tbody>
+</table>
+</section><section><h2 id="file-database-and-server-database">File Database and Server
+Database</h2>
+<table>
+<thead>
+<tr>
+<th>SQLite</th>
+<th>PostgreSQL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python opens a file</td>
+<td>Python connects to a process</td>
+</tr>
+<tr>
+<td>sqlite3 driver</td>
+<td>Psycopg driver</td>
+</tr>
+<tr>
+<td>Database file</td>
+<td>Database name and connection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The server can run in the same Codespace.</strong></p>
+</section><section><h2 id="imdb-inputs">IMDb Inputs</h2>
+<table>
+<thead>
+<tr>
+<th>Archive</th>
+<th>Useful fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>title.basics.tsv.gz</td>
+<td>Identifier, title, year, runtime, genres</td>
+</tr>
+<tr>
+<td>title.ratings.tsv.gz</td>
+<td>Identifier, mean rating, vote count</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The identifier connects the two files.</strong></p>
+</section><section><h2 id="exercise-get-the-files">Exercise: Get the Files</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> chapter-15-moving-to-a-sql-server/code</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> download-imdb.sh</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> check-ignore <span class="at">-v</span> data/title.basics.tsv.gz</span></code></pre></div>
+<p><strong>Result: two valid archives and a matching ignore
+rule.</strong></p>
+</section><section><h2 id="exercise-start-postgresql">Exercise: Start PostgreSQL</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> install-postgres.sh</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> start-postgres.sh</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Exercise value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Address and port</td>
+<td>127.0.0.1:5433</td>
+</tr>
+<tr>
+<td>Database and role</td>
+<td>imdb, student</td>
+</tr>
+</tbody>
+</table>
+</section><section><h2 id="exercise-verify-the-connection">Exercise: Verify the
+Connection</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DATABASE_URL</span><span class="op">=</span>postgresql://student@127.0.0.1:5433/imdb</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="st">&quot;</span><span class="va">$DATABASE_URL</span><span class="st">&quot;</span> <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;SELECT current_database(), current_user;&quot;</span></span></code></pre></div>
+<p><strong>Expected: imdb and student.</strong></p>
+</section><section><h2 id="exercise-prepare-the-sample">Exercise: Prepare the Sample</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> pip install <span class="at">-r</span> requirements.txt</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> prepare_csv.py <span class="at">--start-year</span> 1975 <span class="at">--end-year</span> 1999 <span class="at">--limit</span> 0</span></code></pre></div>
+<p><strong>Result: titles.csv and matching ratings.csv.</strong></p>
+</section><section><h2 id="two-tables-one-identifier">Two Tables, One Identifier</h2>
+<table>
+<thead>
+<tr>
+<th>titles</th>
+<th>ratings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>title_id: primary key</td>
+<td>title_id: primary and foreign key</td>
+</tr>
+<tr>
+<td>primary_title, start_year</td>
+<td>average_rating</td>
+</tr>
+<tr>
+<td>runtime_minutes, genres</td>
+<td>num_votes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Each rating belongs to one imported title.</strong></p>
+</section><section><h2 id="exercise-import-and-check">Exercise: Import and Check</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> import_imdb.py</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> check_setup.py</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="st">&quot;</span><span class="va">$DATABASE_URL</span><span class="st">&quot;</span> <span class="at">-f</span> lecture-01-checks.sql</span></code></pre></div>
+<p><strong>Result: printed row counts, index names, and a query
+plan.</strong></p>
+</section><section><h2 id="indexes-for-actual-queries">Indexes for Actual Queries</h2>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Query pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>start_year, primary_title</td>
+<td>One year, ordered titles</td>
+</tr>
+<tr>
+<td>primary_title</td>
+<td>Exact title equality</td>
+</tr>
+<tr>
+<td>num_votes descending</td>
+<td>Most-voted titles</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ordinary title indexes do not solve arbitrary substring
+search.</strong></p>
+</section><section><h2 id="read-the-plan">Read the Plan</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> title_id, primary_title</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> imdb_course.titles</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> start_year <span class="op">=</span> <span class="dv">1994</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> primary_title;</span></code></pre></div>
+<p><strong>The chosen plan depends on the data and query.</strong></p>
+</section><section><h2 id="ready-for-the-dashboard">Ready for the Dashboard</h2>
+<p>The server is reachable.</p>
+<p>The tables have verified row counts.</p>
+<p>The data layer can now return query results.</p>
+<p><strong>Keep the server port local; next meeting adds the web
+interface.</strong></p>
+</section></div></div><script src="slide-assets/reveal.js"></script><script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:"none"});</script></body></html>

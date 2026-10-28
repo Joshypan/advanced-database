@@ -6,6 +6,7 @@
 </head><body><div class="reveal"><div class="slides"><section><h1 id="a-web-application-with-mongita">A Web Application with
 Mongita</h1>
 <p>Pets, owners, and the database layer</p>
+<hr>
 <p>Gregory S. DeLozier, PhD</p>
 </section>
 <section><h2 id="follow-one-pet">Follow One Pet</h2>
@@ -37,8 +38,8 @@ Mongita</h1>
 </tr>
 </tbody>
 </table>
-<p><strong>Routes ask for records. The layer retrieves
-them.</strong></p>
+<p><strong>The layer now implements the integrity rules SQLite
+enforced.</strong></p>
 </section>
 <section><h2 id="start-the-application">Start the Application</h2>
 <div class="sourceCode" id="cb1"><pre
@@ -182,11 +183,36 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> ConstraintError(...)</span></code></pre></div>
 <p><strong>One matching pet is enough to say no.</strong></p>
 </section>
-<section><h2 id="the-layer-enforces-the-relationship">The Layer Enforces the
-Relationship</h2>
-<p>A pet must refer to an existing owner.</p>
-<p>An owner with pets cannot be deleted through the layer.</p>
-<p><strong>What must another writer preserve?</strong></p>
+<section><h2 id="integrity-rules-in-the-database-layer">Integrity Rules in the
+Database Layer</h2>
+<table>
+<thead>
+<tr>
+<th>SQLite constraint</th>
+<th>Python check in <code>database.py</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Required, nonblank text</td>
+<td>Validate name and type</td>
+</tr>
+<tr>
+<td><code>CHECK (age &gt;= 0)</code></td>
+<td>Reject negative age</td>
+</tr>
+<tr>
+<td>Required foreign key</td>
+<td>Find the selected owner</td>
+</tr>
+<tr>
+<td><code>ON DELETE RESTRICT</code></td>
+<td>Block deletion of an owner with pets</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Same rules. Our database layer now enforces
+them.</strong></p>
 </section>
 <section><h2 id="different-failures-different-responses">Different Failures,
 Different Responses</h2>

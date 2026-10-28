@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Moving to a SQL Server</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Moving to a SQL Server: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-2e67697469676e6f7265">.gitignore</a></li>
+<li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-6170705f6261736963732e7079">app_basics.py</a></li>
+<li><a href="#file-6261636b75705f726573746f72652e7079">backup_restore.py</a></li>
+<li><a href="#file-636865636b5f7065726d697373696f6e732e7079">check_permissions.py</a></li>
+<li><a href="#file-636865636b5f73657475702e7079">check_setup.py</a></li>
+<li><a href="#file-636865636b5f7472616e73616374696f6e5f706167652e7079">check_transaction_page.py</a></li>
+<li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-646f776e6c6f61642d696d64622e7368">download-imdb.sh</a></li>
+<li><a href="#file-696d706f72745f696d64622e7079">import_imdb.py</a></li>
+<li><a href="#file-696e64657865732e73716c">indexes.sql</a></li>
+<li><a href="#file-696e7374616c6c2d706f7374677265732e7368">install-postgres.sh</a></li>
+<li><a href="#file-6c6563747572652d30312d636865636b732e73716c">lecture-01-checks.sql</a></li>
+<li><a href="#file-6c6563747572652d30322d616767726567617465732e73716c">lecture-02-aggregates.sql</a></li>
+<li><a href="#file-6c6563747572652d30332d77696e646f77732e73716c">lecture-03-windows.sql</a></li>
+<li><a href="#file-6e617669676174696f6e2e7079">navigation.py</a></li>
+<li><a href="#file-6e6f7465735f706167652e7079">notes_page.py</a></li>
+<li><a href="#file-6e6f7465735f73746f72652e7079">notes_store.py</a></li>
+<li><a href="#file-707265706172655f6373762e7079">prepare_csv.py</a></li>
+<li><a href="#file-726571756972656d656e74732d746573742e747874">requirements-test.txt</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-736368656d612e73716c">schema.sql</a></li>
+<li><a href="#file-73657475705f726f6c65732e7079">setup_roles.py</a></li>
+<li><a href="#file-73746172742d706f7374677265732e7368">start-postgres.sh</a></li>
+<li><a href="#file-746573745f65786572636973652e7079">test_exercise.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-2e67697469676e6f7265" aria-labelledby="title-file-2e67697469676e6f7265"><header class="file-header"><h2 id="title-file-2e67697469676e6f7265">.gitignore</h2></header><pre><code>data/
+.private*
+.venv/
+__pycache__/
+</code></pre></section>
+<section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079" hidden><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>import os
+import streamlit as st
+import database
+from navigation import choose_page, show_movies
+
+
+def yearly_chart(data, field, mark):
+    # No scale-bound selection: page gestures must not pan or zoom the chart.
+    st.vega_lite_chart(data, {
+        'mark': mark,
+        'encoding': {
+            'x': {'field': 'Year', 'type': 'ordinal'},
+            'y': {'field': field, 'type': 'quantitative'},
+            'tooltip': [{'field': 'Year', 'type': 'ordinal'},
+                        {'field': field, 'type': 'quantitative'}],
+        },
+    }, use_container_width=True)
+
+st.set_page_config(page_title='IMDb on PostgreSQL', layout='wide')
+st.title('IMDb on PostgreSQL')
+if not os.environ.get('DATABASE_URL'):
+    st.error('Set DATABASE_URL before starting the app.'); st.stop()
+page=choose_page()
+if page=='Notes':
+    import notes_page
+    notes_page.render()
+else:
+    votes=st.sidebar.number_input('Minimum votes',min_value=0,value=1000,step=100)
+    if st.sidebar.button('Refresh results'):st.cache_data.clear()
+    @st.cache_data(ttl=60)
+    def read(view,*args):
+        return getattr(database,view)(*args)
+    try:
+        if page=='Search':
+            sample=read('sample_summary')
+            st.caption(f"{sample['titles']:,} movies, {sample['first_year']}-{sample['last_year']}. Results respect Minimum votes; each list shows up to 100 movies.")
+            name,year,rating=st.tabs(['By Name','By Year','By Rating'])
+            with name:
+                text=st.text_input('Movie name',placeholder='Jurassic Park or The Matrix')
+                rows=read('search_titles',text,votes)
+                if rows:show_movies(rows)
+                else:st.info('No matching movies with the current vote filter.')
+            with year:
+                chosen=st.selectbox('Year',read('available_years'),index=0)
+                rows=read('movies_by_year',chosen,votes)
+                if rows:show_movies(rows)
+                else:st.info('No matching movies with the current vote filter.')
+            with rating:
+                low,high=st.slider('Rating range',0.0,10.0,(7.0,9.0),0.1)
+                rows=read('movies_by_rating',low,high,votes)
+                if rows:show_movies(rows)
+                else:st.info('No matching movies in this rating range.')
+        else:
+            st.header('Reports')
+            summary=read('yearly_summary',votes)
+            if not summary:st.info('No movies meet the current vote filter.')
+            else:
+                data=[{'Year':str(r['start_year']),'Movies':int(r['movies']),'Rating':float(r['mean_rating'])} for r in summary]
+                st.subheader('Average rating by year')
+                yearly_chart(data,'Rating','line')
+                st.caption('Each movie has equal weight in the yearly average. Minimum votes determines which movies qualify.')
+                st.subheader('Movies by year')
+                yearly_chart(data,'Movies','bar')
+                changes=read('year_changes',votes)
+                totals=[{'Year':str(r['start_year']),'Movies':int(r['running_total'])} for r in changes]
+                st.subheader('Cumulative movie count')
+                yearly_chart(totals,'Movies','area')
+                st.caption('The running total adds each year to all earlier years in the loaded selection.')
+                st.subheader('Yearly change in movie count')
+                differences=[{'Year':str(r['start_year']),'Difference':int(r['change']) if r['change'] is not None else None} for r in changes]
+                yearly_chart(differences,'Difference','bar')
+                st.caption('Each bar compares the movie count with the preceding available year. The first year has no comparison.')
+    except Exception:
+        st.error('Could not load this view. Check the database connection and imported data.')
+</code></pre></section>
+<section class="source-file" id="file-6170705f6261736963732e7079" aria-labelledby="title-file-6170705f6261736963732e7079" hidden><header class="file-header"><h2 id="title-file-6170705f6261736963732e7079">app_basics.py</h2></header><pre><code>import os
+import streamlit as st
+import database
+
+st.set_page_config(page_title='IMDb dashboard: basics', layout='wide')
+st.title('IMDb dashboard: basics')
+if not os.environ.get('DATABASE_URL'):
+    st.error('Set DATABASE_URL before starting the app.')
+    st.stop()
+votes = st.sidebar.number_input('Minimum votes', min_value=0, value=1000, step=100)
+if st.sidebar.button('Refresh query results'):
+    st.cache_data.clear()
+@st.cache_data(ttl=60)
+def search(text, votes):
+    return database.search_titles(text, votes)
+@st.cache_data(ttl=60)
+def summary(votes):
+    return database.yearly_summary(votes)
+try:
+    first, second = st.tabs(['Search', 'By year'])
+    with first:
+        text = st.text_input('Title contains', '')
+        st.dataframe(search(text, votes), hide_index=True)
+    with second:
+        rows = summary(votes)
+        st.dataframe(rows, hide_index=True)
+        if rows:
+            st.bar_chart(rows, x='start_year', y='movies')
+        st.caption('Counts reflect this sample and vote threshold; ratings give each title equal weight.')
+except Exception:
+    st.error('Query failed. Verify the server, connection and imported tables.')
+</code></pre></section>
+<section class="source-file" id="file-6261636b75705f726573746f72652e7079" aria-labelledby="title-file-6261636b75705f726573746f72652e7079" hidden><header class="file-header"><h2 id="title-file-6261636b75705f726573746f72652e7079">backup_restore.py</h2></header><pre><code>"""Back up the exercise schema and verify a fresh, separate restore."""
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import uuid
+import psycopg
+from psycopg import sql
+from psycopg.conninfo import make_conninfo, conninfo_to_dict
+uri=os.environ['DATABASE_URL']
+restore_db='imdb_restore_'+uuid.uuid4().hex[:10]
+folder=Path('.private-backups'); folder.mkdir(mode=0o700,exist_ok=True)
+archive=folder/(restore_db+'.dump')
+def binary(name):
+    found=shutil.which(name)
+    if not found: raise RuntimeError('Install PostgreSQL client tools: missing '+name)
+    return found
+
+def fingerprint(connection,table):
+    digest=hashlib.sha256();count=0
+    with connection.cursor(name='backup_check') as cur:
+        cur.execute(sql.SQL('SELECT * FROM imdb_course.{} ORDER BY title_id').format(sql.Identifier(table)))
+        for row in cur:
+            digest.update((repr(row)+'\n').encode());count+=1
+    return count,digest.hexdigest()
+# Use a private environment variable, rather than putting a connection URI in process arguments.
+env=dict(os.environ)
+# libpq environment fields are individual values, not an expandable URI.
+for key,value in conninfo_to_dict(uri).items():
+    env['PG'+('DATABASE' if key=='dbname' else key.upper())]=value
+subprocess.run([binary('pg_dump'),'--format=custom','--schema=imdb_course','--file',str(archive)],env=env,check=True)
+with psycopg.connect(make_conninfo(uri,dbname='postgres'),autocommit=True) as admin:
+    admin.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(restore_db)))
+restore_uri=make_conninfo(uri,dbname=restore_db)
+subprocess.run([binary('pg_restore'),'--dbname',restore_db,'--exit-on-error','--single-transaction','--no-owner','--no-privileges',str(archive)],env=dict(env,PGDATABASE=restore_db),check=True)
+with psycopg.connect(uri) as source, psycopg.connect(restore_uri) as target:
+    tables=['titles','ratings']
+    if source.execute("SELECT to_regclass('imdb_course.movie_notes')").fetchone()[0]:tables.append('movie_notes')
+    for table in tables:
+        original=fingerprint(source,table); restored=fingerprint(target,table)
+        assert original==restored,(table,'Restored data differ')
+        print('PASS:',table,original[0],'rows, matching content digest')
+    index_query="SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='imdb_course' ORDER BY indexname"
+    assert source.execute(index_query).fetchall()==target.execute(index_query).fetchall()
+    print('PASS: restored index definitions match')
+print('Archive:',archive)
+print('Restore database:',restore_db)
+print('Restore uses the administrative owner; application grants were deliberately omitted.')
+print('Original database unchanged. Restore database kept for inspection.')
+</code></pre></section>
+<section class="source-file" id="file-636865636b5f7065726d697373696f6e732e7079" aria-labelledby="title-file-636865636b5f7065726d697373696f6e732e7079" hidden><header class="file-header"><h2 id="title-file-636865636b5f7065726d697373696f6e732e7079">check_permissions.py</h2></header><pre><code>"""Exercise actual allowed and denied operations; roll back every test."""
+import os
+import psycopg
+from psycopg.conninfo import make_conninfo
+uri=make_conninfo(os.environ['DATABASE_URL'],user='imdb_reader')
+with psycopg.connect(uri) as conn:
+    assert conn.execute('SELECT current_user').fetchone()[0]=='imdb_reader'
+    assert conn.execute('SELECT count(*) FROM imdb_course.titles').fetchone()[0]&gt;0
+    print('PASS: dashboard login can read titles')
+    conn.rollback()
+    statements=[('UPDATE imdb_course.titles SET primary_title=primary_title WHERE false','update titles'),('CREATE ROLE imdb_permission_probe NOLOGIN','create a role')]
+    for statement,label in statements:
+        try:
+            conn.execute(statement)
+        except psycopg.errors.InsufficientPrivilege:
+            print('PASS: denied '+label)
+        else:
+            raise AssertionError('Unexpected permission: '+label)
+        finally:
+            conn.rollback()
+</code></pre></section>
+<section class="source-file" id="file-636865636b5f73657475702e7079" aria-labelledby="title-file-636865636b5f73657475702e7079" hidden><header class="file-header"><h2 id="title-file-636865636b5f73657475702e7079">check_setup.py</h2></header><pre><code>"""Check the exercise server, row counts, named indexes and query functions."""
+import database
+
+if __name__ == '__main__':
+    print(database.query('SELECT current_database() AS database, current_user AS role'))
+    for table in ['titles', 'ratings']:
+        count = database.query('SELECT count(*) AS count FROM imdb_course.'+table)[0]['count']
+        assert count &gt; 0, 'No rows in '+table
+        print(table, count)
+    indexes = database.query("SELECT indexname FROM pg_indexes WHERE schemaname='imdb_course'")
+    names = {r['indexname'] for r in indexes}
+    assert {'titles_year_title','titles_primary_title','ratings_votes'} &lt;= names
+    print('Indexes:', ', '.join(sorted(names)))
+    for function in [database.yearly_summary, database.ranked_movies, database.year_changes]:
+        print(function.__name__, len(function(0)), 'rows')
+    print('PASS: server, data, indexes and dashboard queries.')
+</code></pre></section>
+<section class="source-file" id="file-636865636b5f7472616e73616374696f6e5f706167652e7079" aria-labelledby="title-file-636865636b5f7472616e73616374696f6e5f706167652e7079" hidden><header class="file-header"><h2 id="title-file-636865636b5f7472616e73616374696f6e5f706167652e7079">check_transaction_page.py</h2></header><pre><code>"""Exercise the live sandbox UI and permission boundaries; requires a clean first-title note."""
+import os,sys
+from pathlib import Path
+from streamlit.testing.v1 import AppTest
+import notes_store
+kind='postgres'
+if kind=='postgres':
+ import psycopg
+ from psycopg.conninfo import make_conninfo
+ import database
+ title=database.query('SELECT title_id FROM imdb_course.titles ORDER BY title_id LIMIT 1')[0]['title_id']
+else:
+ from database import database
+ with database() as db:title=db.titles.find_one(sort=[('_id',1)])['_id']
+assert not any(r['title_id']==title for r in notes_store.list_notes()),'Fixture title already has a note'
+try:
+ app=AppTest.from_file(str(Path('app.py').resolve())).run(timeout=60);assert not app.exception
+ app.radio[0].set_value('Notes').run();assert not app.exception
+ app.text_input[0].set_value(title);app.text_area[0].set_value('First note')
+ next(b for b in app.button if b.label=='Create note').click().run()
+ assert not app.exception
+ assert next(r for r in notes_store.list_notes() if r['title_id']==title)['note']=='First note'
+ try:notes_store.create_note(title,'Duplicate')
+ except ValueError:pass
+ else:raise AssertionError('Duplicate was accepted')
+ app.text_area[1].set_value('Revised note')
+ next(b for b in app.button if b.label=='Update note').click().run()
+ assert not app.exception
+ assert next(r for r in notes_store.list_notes() if r['title_id']==title)['note']=='Revised note'
+ # A reader must not modify movie_notes; a writer must not modify imported titles.
+ if kind=='postgres':
+  for uri,statement in [(os.environ['DATABASE_URL'],'UPDATE imdb_course.movie_notes SET note=note WHERE false'),(os.environ['TRANSACTION_DATABASE_URL'],'UPDATE imdb_course.titles SET primary_title=primary_title WHERE false'),(os.environ['TRANSACTION_DATABASE_URL'],'CREATE ROLE denied_writer_probe NOLOGIN')]:
+   with psycopg.connect(uri) as c:
+    try:c.execute(statement)
+    except psycopg.errors.InsufficientPrivilege:pass
+    else:raise AssertionError('Unexpected PostgreSQL write/admin privilege')
+    finally:c.rollback()
+ else:
+  from connection import uri
+  from pymongo import MongoClient
+  from pymongo.errors import OperationFailure
+  for access,collection in [('reader','movie_notes'),('writer','titles')]:
+   with MongoClient(uri(access)) as c:
+    try:c.imdb_course[collection].update_one({'_id':'__nonexistent_probe__'},{'$set':{'probe':True}})
+    except OperationFailure as e:assert e.code==13
+    else:raise AssertionError('Unexpected MongoDB write privilege')
+  with MongoClient(uri('writer')) as c:
+   try:c.admin.command('usersInfo',1)
+   except OperationFailure as e:assert e.code==13
+   else:raise AssertionError('Unexpected MongoDB admin privilege')
+ app.checkbox[0].check().run()
+ next(b for b in app.button if b.label=='Delete note').click().run()
+ assert not app.exception
+ assert not any(r['title_id']==title for r in notes_store.list_notes())
+ print(kind+': UI create/read/update/delete, duplicate rejection, reader denial and writer scope all passed')
+finally:
+ if any(r['title_id']==title for r in notes_store.list_notes()):notes_store.delete_note(title)
+</code></pre></section>
+<section class="source-file" id="file-64617461626173652e7079" aria-labelledby="title-file-64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-64617461626173652e7079">database.py</h2></header><pre><code>"""Small read-only data layer for the IMDb dashboard."""
+import os
+import psycopg
+from psycopg.rows import dict_row
+
+def query(statement, parameters=()):
+    # Each call owns and closes its connection; Streamlit does not share it.
+    with psycopg.connect(os.environ['DATABASE_URL'], row_factory=dict_row) as connection:
+        return connection.execute(statement, parameters).fetchall()
+
+def search_titles(text, minimum_votes=1000):
+    return query("""
+        SELECT t.title_id, t.primary_title, t.start_year,
+               r.average_rating, r.num_votes
+        FROM imdb_course.titles t LEFT JOIN imdb_course.ratings r USING (title_id)
+        WHERE t.primary_title ILIKE %s AND coalesce(r.num_votes, 0) &gt;= %s
+        ORDER BY r.num_votes DESC, t.title_id LIMIT 100
+    """, ('%'+text.strip()+'%', minimum_votes))
+
+def yearly_summary(minimum_votes=1000):
+    return query("""
+        SELECT t.start_year, count(*) AS movies,
+               round(avg(r.average_rating), 2) AS mean_rating
+        FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+        WHERE t.start_year IS NOT NULL AND r.num_votes &gt;= %s
+        GROUP BY t.start_year ORDER BY t.start_year
+    """, (minimum_votes,))
+
+def ranked_movies(minimum_votes=1000):
+    return query("""
+        WITH ranked AS (
+            SELECT t.title_id, t.primary_title, t.start_year, r.average_rating, r.num_votes,
+                   dense_rank() OVER (
+                       PARTITION BY t.start_year
+                       ORDER BY r.average_rating DESC
+                   ) AS year_rank
+            FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+            WHERE t.start_year IS NOT NULL AND r.num_votes &gt;= %s
+        )
+        SELECT * FROM ranked WHERE year_rank &lt;= 3
+        ORDER BY start_year DESC, year_rank, num_votes DESC, primary_title
+        LIMIT 300
+    """, (minimum_votes,))
+
+def year_changes(minimum_votes=1000):
+    return query("""
+        WITH yearly AS (
+            SELECT t.start_year, count(*) AS movies
+            FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+            WHERE t.start_year IS NOT NULL AND r.num_votes &gt;= %s
+            GROUP BY t.start_year
+        )
+        SELECT start_year, movies,
+               lag(start_year) OVER (ORDER BY start_year) AS previous_year,
+               movies - lag(movies) OVER (ORDER BY start_year) AS change,
+               sum(movies) OVER (
+                   ORDER BY start_year ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+               ) AS running_total
+        FROM yearly ORDER BY start_year
+    """, (minimum_votes,))
+
+def sample_summary():
+    return query('SELECT count(*) AS titles, min(start_year) AS first_year, max(start_year) AS last_year FROM imdb_course.titles')[0]
+
+def movies_by_year(year, minimum_votes=1000):
+    return query("""SELECT t.title_id,t.primary_title,t.start_year,r.average_rating,r.num_votes
+        FROM imdb_course.titles t LEFT JOIN imdb_course.ratings r USING(title_id)
+        WHERE t.start_year=%s AND coalesce(r.num_votes,0)&gt;=%s
+        ORDER BY coalesce(r.num_votes,0) DESC,t.title_id LIMIT 100""",(int(year),minimum_votes))
+
+def movies_by_rating(low, high, minimum_votes=1000):
+    if not 0 &lt;= low &lt;= high &lt;= 10:raise ValueError('Choose a rating range from 0 to 10.')
+    return query("""SELECT t.title_id,t.primary_title,t.start_year,r.average_rating,r.num_votes
+        FROM imdb_course.ratings r JOIN imdb_course.titles t USING(title_id)
+        WHERE r.average_rating BETWEEN %s AND %s AND r.num_votes &gt;= %s
+        ORDER BY r.average_rating DESC,r.num_votes DESC,t.title_id LIMIT 100""",(low,high,minimum_votes))
+
+def available_years():
+    return [row['start_year'] for row in query('SELECT DISTINCT start_year FROM imdb_course.titles WHERE start_year IS NOT NULL ORDER BY start_year')]
+</code></pre></section>
+<section class="source-file" id="file-646f776e6c6f61642d696d64622e7368" aria-labelledby="title-file-646f776e6c6f61642d696d64622e7368" hidden><header class="file-header"><h2 id="title-file-646f776e6c6f61642d696d64622e7368">download-imdb.sh</h2></header><pre><code>#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p data
+for name in title.basics title.ratings; do
+    if [ ! -s "data/$name.tsv.gz" ]; then
+        curl --fail --location --retry 3 "https://datasets.imdbws.com/$name.tsv.gz" -o "data/$name.tsv.gz.partial"
+        mv "data/$name.tsv.gz.partial" "data/$name.tsv.gz"
+    fi
+done
+gzip -t data/title.basics.tsv.gz data/title.ratings.tsv.gz
+printf '%s\n' 'IMDb compressed inputs ready. Existing files retained.'
+</code></pre></section>
+<section class="source-file" id="file-696d706f72745f696d64622e7079" aria-labelledby="title-file-696d706f72745f696d64622e7079" hidden><header class="file-header"><h2 id="title-file-696d706f72745f696d64622e7079">import_imdb.py</h2></header><pre><code>"""Import prepared CSV files transactionally into the imdb_course schema."""
+import argparse
+import os
+from pathlib import Path
+import psycopg
+
+HERE = Path(__file__).resolve().parent
+
+def load(data_dir='data', replace=False):
+    paths = [(table, Path(data_dir)/(table+'.csv')) for table in ['titles', 'ratings']]
+    for table, path in paths:
+        if not path.is_file():
+            raise FileNotFoundError(path)
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        exists = connection.execute("SELECT 1 FROM pg_namespace WHERE nspname='imdb_course'").fetchone()
+        if exists and not replace:
+            raise RuntimeError('imdb_course already exists. Use --replace only to replace this exercise schema.')
+        if exists:
+            connection.execute('DROP SCHEMA imdb_course CASCADE')
+        connection.execute('CREATE SCHEMA imdb_course')
+        connection.execute((HERE/'schema.sql').read_text())
+        for table, path in paths:
+            statement = psycopg.sql.SQL('COPY imdb_course.{} FROM STDIN WITH (FORMAT CSV, HEADER TRUE)').format(psycopg.sql.Identifier(table))
+            with path.open('rb') as source, connection.cursor().copy(statement) as target:
+                while block := source.read(1024*1024):
+                    target.write(block)
+        connection.execute((HERE/'indexes.sql').read_text())
+        for table, _ in paths:
+            count = connection.execute(psycopg.sql.SQL('SELECT count(*) FROM imdb_course.{}').format(psycopg.sql.Identifier(table))).fetchone()[0]
+            print(f'{table}: {count:,} rows')
+    print('Committed import, indexes and statistics.')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--data-dir', default='data')
+    parser.add_argument('--replace', action='store_true')
+    args = parser.parse_args()
+    load(args.data_dir, args.replace)
+</code></pre></section>
+<section class="source-file" id="file-696e64657865732e73716c" aria-labelledby="title-file-696e64657865732e73716c" hidden><header class="file-header"><h2 id="title-file-696e64657865732e73716c">indexes.sql</h2></header><pre><code>CREATE INDEX IF NOT EXISTS titles_year_title
+    ON imdb_course.titles (start_year, primary_title);
+CREATE INDEX IF NOT EXISTS titles_primary_title
+    ON imdb_course.titles (primary_title);
+CREATE INDEX IF NOT EXISTS ratings_votes
+    ON imdb_course.ratings (num_votes DESC);
+ANALYZE imdb_course.titles;
+ANALYZE imdb_course.ratings;
+</code></pre></section>
+<section class="source-file" id="file-696e7374616c6c2d706f7374677265732e7368" aria-labelledby="title-file-696e7374616c6c2d706f7374677265732e7368" hidden><header class="file-header"><h2 id="title-file-696e7374616c6c2d706f7374677265732e7368">install-postgres.sh</h2></header><pre><code>#!/usr/bin/env bash
+set -euo pipefail
+sudo apt-get update
+sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-client libpq-dev python3-venv
+psql --version
+printf '%s\n' 'Server and client installed. Next: bash start-postgres.sh'
+</code></pre></section>
+<section class="source-file" id="file-6c6563747572652d30312d636865636b732e73716c" aria-labelledby="title-file-6c6563747572652d30312d636865636b732e73716c" hidden><header class="file-header"><h2 id="title-file-6c6563747572652d30312d636865636b732e73716c">lecture-01-checks.sql</h2></header><pre><code>\set ON_ERROR_STOP on
+SELECT current_database(), current_user, version();
+SELECT count(*) AS titles FROM imdb_course.titles;
+SELECT count(*) AS ratings FROM imdb_course.ratings;
+SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='imdb_course';
+SELECT start_year AS sample_year FROM imdb_course.titles
+ WHERE start_year IS NOT NULL GROUP BY start_year
+ ORDER BY count(*) DESC, start_year LIMIT 1 \gset
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT title_id, primary_title FROM imdb_course.titles
+ WHERE start_year = :sample_year ORDER BY primary_title;
+</code></pre></section>
+<section class="source-file" id="file-6c6563747572652d30322d616767726567617465732e73716c" aria-labelledby="title-file-6c6563747572652d30322d616767726567617465732e73716c" hidden><header class="file-header"><h2 id="title-file-6c6563747572652d30322d616767726567617465732e73716c">lecture-02-aggregates.sql</h2></header><pre><code>\set ON_ERROR_STOP on
+-- One row per movie.
+SELECT t.primary_title, t.start_year, r.average_rating, r.num_votes
+FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+WHERE r.num_votes &gt;= 1000 ORDER BY num_votes DESC, title_id LIMIT 20;
+-- One row per year.
+SELECT t.start_year, count(*) AS movies, round(avg(r.average_rating),2) AS mean_rating
+FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+WHERE t.start_year IS NOT NULL AND r.num_votes &gt;= 1000
+GROUP BY t.start_year ORDER BY t.start_year;
+-- Movie filter in WHERE; group filter in HAVING.
+SELECT t.start_year, count(*) AS movies
+FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
+WHERE t.start_year IS NOT NULL AND r.num_votes &gt;= 1000 AND t.runtime_minutes &gt;= 90
+GROUP BY t.start_year HAVING count(*) &gt;= 5 ORDER BY t.start_year;
+</code></pre></section>
+<section class="source-file" id="file-6c6563747572652d30332d77696e646f77732e73716c" aria-labelledby="title-file-6c6563747572652d30332d77696e646f77732e73716c" hidden><header class="file-header"><h2 id="title-file-6c6563747572652d30332d77696e646f77732e73716c">lecture-03-windows.sql</h2></header><pre><code>\set ON_ERROR_STOP on
+-- Deterministic tie fixture: dense ranks 1,1,2; row numbers 1,2,3.
+WITH films(title,rating) AS (VALUES ('Alpha',8.0),('Beta',8.0),('Gamma',7.0))
+SELECT title, rating, dense_rank() OVER (ORDER BY rating DESC) AS rating_rank,
+ row_number() OVER (ORDER BY rating DESC,title) AS movie_number
+FROM films ORDER BY rating DESC,title;
+-- Missing-year fixture: changes NULL,-2; totals 3,4.
+WITH yearly(year,movies) AS (VALUES (2000,3),(2002,1))
+SELECT year,movies,lag(year) OVER (ORDER BY year) AS previous_year,
+ movies-lag(movies) OVER (ORDER BY year) AS change,
+ sum(movies) OVER (ORDER BY year ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+FROM yearly ORDER BY year;
+-- Same ranking operation on imported movies.
+WITH ranked AS (
+ SELECT t.primary_title,t.start_year,r.average_rating,r.num_votes,
+ dense_rank() OVER (PARTITION BY t.start_year ORDER BY r.average_rating DESC) AS year_rank
+ FROM imdb_course.titles t JOIN imdb_course.ratings r USING(title_id)
+ WHERE t.start_year IS NOT NULL AND r.num_votes&gt;=1000
+)
+SELECT * FROM ranked WHERE year_rank&lt;=3
+ORDER BY start_year DESC,year_rank,num_votes DESC,primary_title LIMIT 100;
+-- A movie and the mean of its retained year group.
+SELECT t.primary_title,t.start_year,r.average_rating,
+ avg(r.average_rating) OVER (PARTITION BY t.start_year) AS year_mean,
+ r.average_rating-avg(r.average_rating) OVER (PARTITION BY t.start_year) AS above_year_mean
+FROM imdb_course.titles t JOIN imdb_course.ratings r USING(title_id)
+WHERE t.start_year IS NOT NULL AND r.num_votes&gt;=1000
+ORDER BY t.start_year DESC,t.title_id LIMIT 100;
+</code></pre></section>
+<section class="source-file" id="file-6e617669676174696f6e2e7079" aria-labelledby="title-file-6e617669676174696f6e2e7079" hidden><header class="file-header"><h2 id="title-file-6e617669676174696f6e2e7079">navigation.py</h2></header><pre><code>import streamlit as st
+
+def choose_page():
+    requested=st.query_params.get('page','Search')
+    if requested=='Transactions':requested='Notes'
+    if requested not in ['Search','Notes','Reports']:requested='Search'
+    if st.session_state.get('_query_page')!=requested:
+        st.session_state['page_navigation']=requested
+        st.session_state['_query_page']=requested
+    def navigate():
+        chosen=st.session_state['page_navigation']
+        st.query_params['page']=chosen
+        st.session_state['_query_page']=chosen
+    return st.sidebar.radio('Page',['Search','Notes','Reports'],key='page_navigation',on_change=navigate)
+
+def linked_movies(rows):
+    from urllib.parse import urlencode
+    output=[]
+    for row in rows:
+        title_id=row.get('title_id',row.get('_id'))
+        item=dict(row)
+        item['movie_notes']='?'+urlencode({'page':'Notes','title_id':title_id,'title':row['primary_title']})
+        output.append(item)
+    return output
+
+def show_movies(rows):
+    if not rows:
+        st.info('No matching movies with the current filters.')
+        return
+    columns=[c for c in ['primary_title','movie_notes','start_year','average_rating','num_votes','runtime_minutes','genres'] if c=='movie_notes' or (rows and c in rows[0])]
+    st.dataframe(linked_movies(rows),hide_index=True,column_order=columns,column_config={'primary_title':st.column_config.TextColumn('Movie'),'movie_notes':st.column_config.LinkColumn('Notes',display_text=':material/note_alt:',help='Open movie notes'),'title_id':None,'_id':None,'start_year':'Year','average_rating':'Rating','num_votes':'Votes','runtime_minutes':'Runtime','genres':'Genres','year_rank':'Rank'})
+</code></pre></section>
+<section class="source-file" id="file-6e6f7465735f706167652e7079" aria-labelledby="title-file-6e6f7465735f706167652e7079" hidden><header class="file-header"><h2 id="title-file-6e6f7465735f706167652e7079">notes_page.py</h2></header><pre><code>"""Small notes page shared by the two classroom applications."""
+import streamlit as st
+import notes_store
+
+def render():
+    st.subheader('Movie notes')
+    st.caption('Create, read, update and delete course notes. Imported IMDb records remain read-only.')
+    try:
+        rows=notes_store.list_notes()
+    except Exception:
+        st.info('Run the account setup and configure the notes connection. Search can still run without write access.')
+        return
+    selected_id=st.query_params.get('title_id','')
+    selected_title=st.query_params.get('title','')
+    if selected_id:
+        movie=notes_store.get_movie(selected_id)
+        if movie:
+            selected_title=movie['primary_title']
+            st.markdown('### '+selected_title)
+            st.caption(selected_id)
+        else:
+            st.error('This movie is not in the loaded selection.')
+            return
+    else:
+        st.markdown('[Find a movie](?page=Search)')
+    with st.form('create_note',clear_on_submit=True):
+        title_id=st.text_input('IMDb title identifier',value=selected_id,disabled=bool(selected_id))
+        note=st.text_area('New note',max_chars=2000)
+        create=st.form_submit_button('Create note')
+    if create:
+        try:
+            notes_store.create_note(title_id,note)
+            st.rerun()
+        except Exception as error:
+            st.error(str(error))
+    if not rows:
+        if not selected_id:
+            st.info('Open a movie from Search to add a note.')
+        return
+    ids=[row['title_id'] for row in rows]
+    names={row['title_id']:row['primary_title'] for row in rows}
+    selected=st.selectbox('Note to edit',ids,index=ids.index(selected_id) if selected_id in ids else 0,format_func=lambda value:names[value])
+    current=next(row for row in rows if row['title_id']==selected)
+    with st.form('edit_note'):
+        changed=st.text_area('Edited note',value=current['note'],max_chars=2000,key='edit_'+selected)
+        update=st.form_submit_button('Update note')
+    if update:
+        try:
+            notes_store.update_note(selected,changed);st.rerun()
+        except Exception as error:st.error(str(error))
+    confirmed=st.checkbox('Confirm deletion of this note')
+    if st.button('Delete note',disabled=not confirmed):
+        try:
+            notes_store.delete_note(selected);st.rerun()
+        except Exception as error:st.error(str(error))
+
+    st.subheader('Existing notes')
+    st.dataframe(rows,hide_index=True,column_order=['primary_title','note'],column_config={'primary_title':'Movie','note':'Note','title_id':None})
+</code></pre></section>
+<section class="source-file" id="file-6e6f7465735f73746f72652e7079" aria-labelledby="title-file-6e6f7465735f73746f72652e7079" hidden><header class="file-header"><h2 id="title-file-6e6f7465735f73746f72652e7079">notes_store.py</h2></header><pre><code>"""Transactional connection with rights on movie_notes only."""
+import os
+import psycopg
+from psycopg.rows import dict_row
+
+def connect():
+    return psycopg.connect(os.environ['TRANSACTION_DATABASE_URL'],row_factory=dict_row)
+def valid(title_id,note):
+    title_id=title_id.strip();note=note.strip()
+    if not title_id.startswith('tt') or not title_id[2:].isdigit():raise ValueError('Use an IMDb title identifier such as tt0000001.')
+    if not note or len(note)&gt;2000:raise ValueError('A note must contain 1 to 2000 characters.')
+    return title_id,note
+
+def list_notes():
+    with connect() as c:
+        return c.execute('SELECT n.title_id,t.primary_title,n.note FROM imdb_course.movie_notes n JOIN imdb_course.titles t USING(title_id) ORDER BY n.title_id').fetchall()
+def create_note(title_id,note):
+    title_id,note=valid(title_id,note)
+    try:
+        with connect() as c:c.execute('INSERT INTO imdb_course.movie_notes(title_id,note) VALUES(%s,%s)',(title_id,note))
+    except psycopg.errors.UniqueViolation:raise ValueError('That movie already has a note; edit it instead.') from None
+    except psycopg.errors.ForeignKeyViolation:raise ValueError('That title is not in the imported sample.') from None
+def update_note(title_id,note):
+    title_id,note=valid(title_id,note)
+    with connect() as c:
+        if c.execute('UPDATE imdb_course.movie_notes SET note=%s WHERE title_id=%s',(note,title_id)).rowcount!=1:raise ValueError('Note no longer exists.')
+def delete_note(title_id):
+    with connect() as c:
+        if c.execute('DELETE FROM imdb_course.movie_notes WHERE title_id=%s',(title_id,)).rowcount!=1:raise ValueError('Note no longer exists.')
+
+def get_movie(title_id):
+    with connect() as c:
+        return c.execute('SELECT title_id,primary_title FROM imdb_course.titles WHERE title_id=%s',(title_id,)).fetchone()
+</code></pre></section>
+<section class="source-file" id="file-707265706172655f6373762e7079" aria-labelledby="title-file-707265706172655f6373762e7079" hidden><header class="file-header"><h2 id="title-file-707265706172655f6373762e7079">prepare_csv.py</h2></header><pre><code>"""Convert local IMDb TSV archives to portable movie/ratings CSV files."""
+import argparse
+import csv
+import gzip
+from pathlib import Path
+
+
+def prepare(data_dir, limit=100000, start_year=None, end_year=None):
+    if limit &lt; 0:
+        raise ValueError('limit must be nonnegative; zero means all movies')
+    if start_year is not None and end_year is not None and start_year &gt; end_year:
+        raise ValueError('start year must not exceed end year')
+    data_dir = Path(data_dir)
+    for name in ['title.basics.tsv.gz', 'title.ratings.tsv.gz']:
+        if not (data_dir/name).is_file():
+            raise FileNotFoundError(data_dir/name)
+    ids = set()
+    with gzip.open(data_dir/'title.basics.tsv.gz', 'rt', encoding='utf-8', newline='') as source, (data_dir/'titles.csv').open('w', encoding='utf-8', newline='') as target:
+        reader = csv.DictReader(source, delimiter='\t', quoting=csv.QUOTE_NONE)
+        writer = csv.writer(target)
+        writer.writerow(['title_id', 'primary_title', 'start_year', 'runtime_minutes', 'genres'])
+        for row in reader:
+            if row['titleType'] != 'movie' or row['isAdult'] != '0':
+                continue
+            year = None if row['startYear'] == r'\N' else int(row['startYear'])
+            if start_year is not None and (year is None or year &lt; start_year):
+                continue
+            if end_year is not None and (year is None or year &gt; end_year):
+                continue
+            ids.add(row['tconst'])
+            writer.writerow([row['tconst'], row['primaryTitle'], '' if row['startYear'] == r'\N' else row['startYear'], '' if row['runtimeMinutes'] == r'\N' else row['runtimeMinutes'], '' if row['genres'] == r'\N' else row['genres']])
+            if limit and len(ids) &gt;= limit:
+                break
+    ratings = 0
+    with gzip.open(data_dir/'title.ratings.tsv.gz', 'rt', encoding='utf-8', newline='') as source, (data_dir/'ratings.csv').open('w', encoding='utf-8', newline='') as target:
+        reader = csv.DictReader(source, delimiter='\t', quoting=csv.QUOTE_NONE)
+        writer = csv.writer(target)
+        writer.writerow(['title_id', 'average_rating', 'num_votes'])
+        for row in reader:
+            if row['tconst'] in ids:
+                writer.writerow([row['tconst'], row['averageRating'], row['numVotes']])
+                ratings += 1
+    print(f'Prepared {len(ids):,} movies and {ratings:,} matching ratings.')
+    return len(ids), ratings
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--data-dir', default='data')
+    parser.add_argument('--limit', type=int, default=0, help='maximum movies; 0 loads all eligible movies')
+    parser.add_argument('--start-year', type=int, default=1975)
+    parser.add_argument('--end-year', type=int, default=1999)
+    args = parser.parse_args()
+    prepare(args.data_dir, args.limit, args.start_year, args.end_year)
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732d746573742e747874" aria-labelledby="title-file-726571756972656d656e74732d746573742e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732d746573742e747874">requirements-test.txt</h2></header><pre><code>-r requirements.txt
+pytest&gt;=8,&lt;10
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>psycopg[binary]&gt;=3.2,&lt;4
+streamlit&gt;=1.63,&lt;2
+</code></pre></section>
+<section class="source-file" id="file-736368656d612e73716c" aria-labelledby="title-file-736368656d612e73716c" hidden><header class="file-header"><h2 id="title-file-736368656d612e73716c">schema.sql</h2></header><pre><code>CREATE TABLE imdb_course.titles (
+    title_id text PRIMARY KEY,
+    primary_title text NOT NULL,
+    start_year integer,
+    runtime_minutes integer,
+    genres text
+);
+CREATE TABLE imdb_course.ratings (
+    title_id text PRIMARY KEY REFERENCES imdb_course.titles(title_id),
+    average_rating numeric(3,1) NOT NULL,
+    num_votes integer NOT NULL CHECK (num_votes &gt;= 0)
+);
+</code></pre></section>
+<section class="source-file" id="file-73657475705f726f6c65732e7079" aria-labelledby="title-file-73657475705f726f6c65732e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f726f6c65732e7079">setup_roles.py</h2></header><pre><code>"""Create the dashboard login using an administrative DATABASE_URL."""
+import os
+import psycopg
+from psycopg import sql
+ROLE = 'imdb_reader'
+with psycopg.connect(os.environ['DATABASE_URL']) as conn:
+    if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s",(ROLE,)).fetchone():
+        conn.execute(sql.SQL('CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS').format(sql.Identifier(ROLE)))
+    unsafe=conn.execute('SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls FROM pg_roles WHERE rolname=%s',(ROLE,)).fetchone()[0]
+    memberships=conn.execute('SELECT 1 FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)',(ROLE,)).fetchone()
+    if unsafe or memberships:
+        raise RuntimeError('Existing imdb_reader has extra powers or memberships; inspect before reusing it')
+    dbname=conn.execute('SELECT current_database()').fetchone()[0]
+    conn.execute(sql.SQL('GRANT CONNECT ON DATABASE {} TO {}').format(sql.Identifier(dbname),sql.Identifier(ROLE)))
+    conn.execute('GRANT USAGE ON SCHEMA imdb_course TO imdb_reader')
+    conn.execute('GRANT SELECT ON ALL TABLES IN SCHEMA imdb_course TO imdb_reader')
+    conn.execute('ALTER DEFAULT PRIVILEGES IN SCHEMA imdb_course GRANT SELECT ON TABLES TO imdb_reader')
+print('imdb_reader can read the existing course tables and future tables created by this owner.')
+
+with psycopg.connect(os.environ['DATABASE_URL']) as conn:
+    conn.execute("""CREATE TABLE IF NOT EXISTS imdb_course.movie_notes (
+        title_id text PRIMARY KEY REFERENCES imdb_course.titles(title_id),
+        note text NOT NULL CHECK (length(btrim(note)) BETWEEN 1 AND 2000))""")
+    if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname='imdb_writer'").fetchone():
+        conn.execute('CREATE ROLE imdb_writer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS')
+    unsafe=conn.execute("SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls FROM pg_roles WHERE rolname='imdb_writer'").fetchone()[0]
+    memberships=conn.execute("SELECT 1 FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname='imdb_writer')").fetchone()
+    if unsafe or memberships:raise RuntimeError('Existing imdb_writer has unexpected privileges or memberships')
+    dbname=conn.execute('SELECT current_database()').fetchone()[0]
+    conn.execute(sql.SQL('GRANT CONNECT ON DATABASE {} TO imdb_writer').format(sql.Identifier(dbname)))
+    conn.execute('GRANT USAGE ON SCHEMA imdb_course TO imdb_writer')
+    conn.execute('GRANT SELECT ON imdb_course.titles,imdb_course.ratings,imdb_course.movie_notes TO imdb_writer')
+    conn.execute('GRANT INSERT, UPDATE, DELETE ON imdb_course.movie_notes TO imdb_writer')
+    conn.execute('GRANT SELECT ON imdb_course.movie_notes TO imdb_reader')
+print('imdb_writer can read IMDb and perform CRUD on movie_notes only.')
+</code></pre></section>
+<section class="source-file" id="file-73746172742d706f7374677265732e7368" aria-labelledby="title-file-73746172742d706f7374677265732e7368" hidden><header class="file-header"><h2 id="title-file-73746172742d706f7374677265732e7368">start-postgres.sh</h2></header><pre><code>#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+pg_bin="$(pg_config --bindir)"
+pg_data="$PWD/.private-postgres"
+mkdir -p "$pg_data"
+chmod 700 "$pg_data"
+exec 9&gt;"$PWD/.private-postgres-start.lock"
+flock 9
+if [ ! -f "$pg_data/PG_VERSION" ]; then
+    "$pg_bin/initdb" -D "$pg_data" -U student --auth-local=trust --auth-host=trust --encoding=UTF8 --locale=C.UTF-8
+    cat &gt;&gt; "$pg_data/postgresql.conf" &lt;&lt;'CONF'
+listen_addresses = '127.0.0.1'
+port = 5433
+unix_socket_directories = '/tmp'
+CONF
+fi
+if ! "$pg_bin/pg_ctl" -D "$pg_data" status &gt;/dev/null 2&gt;&amp;1; then
+    # Keep the startup lock in this shell, not in the long-running server.
+    "$pg_bin/pg_ctl" -D "$pg_data" -l "$pg_data/server.log" -w start 9&gt;&amp;-
+fi
+if ! psql 'postgresql://student@127.0.0.1:5433/postgres' -Atc "SELECT 1 FROM pg_database WHERE datname = 'imdb'" | grep -qx 1; then
+    createdb -h 127.0.0.1 -p 5433 -U student imdb
+fi
+psql 'postgresql://student@127.0.0.1:5433/imdb' -c 'SELECT current_database(), current_user;'
+</code></pre></section>
+<section class="source-file" id="file-746573745f65786572636973652e7079" aria-labelledby="title-file-746573745f65786572636973652e7079" hidden><header class="file-header"><h2 id="title-file-746573745f65786572636973652e7079">test_exercise.py</h2></header><pre><code>"""Run against a disposable database: TEST_DATABASE_URL must name *_test."""
+import csv
+import gzip
+import os
+from pathlib import Path
+
+import psycopg
+import pytest
+import database
+import import_imdb
+from prepare_csv import prepare
+
+
+def test_prepare_csv_handles_quotes_missing_values_and_matching_ratings(tmp_path):
+    with gzip.open(tmp_path/'title.basics.tsv.gz', 'wt') as f:
+        f.write('tconst\ttitleType\tprimaryTitle\toriginalTitle\tisAdult\tstartYear\tendYear\truntimeMinutes\tgenres\n')
+        f.write('tt1\tmovie\tA, "Movie"\tA\t0\t2000\t\\N\t\\N\tDrama\n')
+        f.write('tt2\ttvSeries\tSeries\tSeries\t0\t2001\t\\N\t30\tComedy\n')
+        f.write('tt3\tmovie\tOther\tOther\t0\t2002\t\\N\t90\tDrama\n')
+    with gzip.open(tmp_path/'title.ratings.tsv.gz', 'wt') as f:
+        f.write('tconst\taverageRating\tnumVotes\ntt1\t8.0\t2000\ntt2\t7.0\t900\ntt3\t9.0\t3000\n')
+    assert prepare(tmp_path, 1) == (1, 1)
+    rows = list(csv.DictReader((tmp_path/'titles.csv').open()))
+    assert rows[0]['primary_title'] == 'A, "Movie"'
+    assert rows[0]['runtime_minutes'] == ''
+    assert prepare(tmp_path, 0, 2000, 2000) == (1, 1)
+    with pytest.raises(ValueError):
+        prepare(tmp_path, 0, 2002, 2000)
+    with pytest.raises(ValueError):
+        prepare(tmp_path, -1)
+
+
+def test_import_queries_and_streamlit(tmp_path, monkeypatch):
+    uri = os.environ.get('TEST_DATABASE_URL')
+    if not uri:
+        pytest.skip('Set TEST_DATABASE_URL to a disposable database ending in _test')
+    with psycopg.connect(uri, autocommit=True) as c:
+        assert c.execute('SELECT current_database()').fetchone()[0].endswith('_test')
+        assert c.execute("SELECT 1 FROM pg_namespace WHERE nspname='imdb_course'").fetchone() is None
+    monkeypatch.setenv('DATABASE_URL', uri)
+    (tmp_path/'titles.csv').write_text('title_id,primary_title,start_year,runtime_minutes,genres\na,Alpha,2000,90,Drama\nb,Beta,2000,100,Drama\nc,Gamma,2000,110,Comedy\nd,Delta,2002,,Drama\ne,Unrated Movie,2003,95,Drama\n')
+    (tmp_path/'ratings.csv').write_text('title_id,average_rating,num_votes\na,8.0,2000\nb,8.0,3000\nc,7.0,4000\nd,9.0,5000\n')
+    try:
+        import_imdb.load(tmp_path)
+        with pytest.raises(RuntimeError):
+            import_imdb.load(tmp_path)
+        assert len(database.search_titles('', 0)) == 5
+        assert database.search_titles("' OR 1=1 --", 0) == []
+        assert database.search_titles('  unrated  ', 0)[0]['primary_title'] == 'Unrated Movie'
+        assert database.search_titles('Unrated', 1) == []
+        assert len(database.movies_by_year(2000,0)) == 3
+        assert len(database.movies_by_rating(8.0,8.0,0)) == 2
+        with pytest.raises(ValueError):database.movies_by_rating(9.0,8.0,0)
+        years = database.yearly_summary(0)
+        assert [r['movies'] for r in years] == [3, 1]
+        ranks = {r['primary_title']: r['year_rank'] for r in database.ranked_movies(0)}
+        assert ranks == {'Alpha': 1, 'Beta': 1, 'Gamma': 2, 'Delta': 1}
+        changes = database.year_changes(0)
+        assert changes[0]['change'] is None
+        assert changes[1]['previous_year'] == 2000
+        assert changes[1]['change'] == -2
+        assert changes[1]['running_total'] == 4
+        (tmp_path/'ratings.csv').write_text('title_id,average_rating,num_votes\nmissing,9.0,5\n')
+        with pytest.raises(psycopg.errors.ForeignKeyViolation):
+            import_imdb.load(tmp_path, replace=True)
+        assert len(database.search_titles('', 0)) == 5  # replacement rolled back
+        from streamlit.testing.v1 import AppTest
+        app = AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+        assert not app.exception
+        assert not app.error
+        assert [t.label for t in app.tabs] == ['By Name','By Year','By Rating']
+        assert len(app.dataframe) == 3
+        app.radio[0].set_value('Reports').run()
+        assert not app.exception
+        assert len(app.get('vega_lite_chart')) == 4
+    finally:
+        with psycopg.connect(uri, autocommit=True) as c:
+            c.execute('DROP SCHEMA IF EXISTS imdb_course CASCADE')
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-15-moving-to-a-sql-server/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

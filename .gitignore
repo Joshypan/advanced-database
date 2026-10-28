@@ -12,3 +12,6 @@
 **/data/
 **/imdb.db
 **/imdb.db-*
+
+# Incremental authoring build metadata
+/.make/

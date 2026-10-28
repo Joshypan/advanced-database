@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Indexes in MongoDB Atlas</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Indexes in MongoDB Atlas: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-2e67697469676e6f7265">.gitignore</a></li>
+<li><a href="#file-6163636573732d61746c61732d64656d6f2e7079">access-atlas-demo.py</a></li>
+<li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-6578706c61696e2d717565726965732e7079">explain-queries.py</a></li>
+<li><a href="#file-6578706c6f72652d696d64622d696e64657865732e7079">explore-imdb-indexes.py</a></li>
+<li><a href="#file-696d706f72742d696d64622d6d6f6e676f2e7079">import-imdb-mongo.py</a></li>
+<li><a href="#file-726571756972656d656e74732d746573742e747874">requirements-test.txt</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
+<li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
+<li><a href="#file-74656d706c617465732f6f776e65725f6372656174652e68746d6c">templates/owner_create.html</a></li>
+<li><a href="#file-74656d706c617465732f6f776e65725f6c6973742e68746d6c">templates/owner_list.html</a></li>
+<li><a href="#file-74656d706c617465732f6f776e65725f7570646174652e68746d6c">templates/owner_update.html</a></li>
+<li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f636f6e6e656374696f6e2e7079">test_connection.py</a></li>
+<li><a href="#file-746573745f64617461626173655f63692e7079">test_database_ci.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-2e67697469676e6f7265" aria-labelledby="title-file-2e67697469676e6f7265"><header class="file-header"><h2 id="title-file-2e67697469676e6f7265">.gitignore</h2></header><pre><code>.env
+.env.*
+.private*
+.venv/
+__pycache__/
+.pytest_cache/
+</code></pre></section>
+<section class="source-file" id="file-6163636573732d61746c61732d64656d6f2e7079" aria-labelledby="title-file-6163636573732d61746c61732d64656d6f2e7079" hidden><header class="file-header"><h2 id="title-file-6163636573732d61746c61732d64656d6f2e7079">access-atlas-demo.py</h2></header><pre><code>"""Check the configured connection and read access; never print credentials."""
+import database
+
+
+def main():
+    try:
+        database.setup_database("pets")
+        print("Connected to MongoDB; pets database is readable.")
+        print("Owners:", database.owners_collection.count_documents({}))
+        print("Pets:", database.pets_collection.count_documents({}))
+    finally:
+        database.close_connection()
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></section>
+<section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079" hidden><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>from flask import Flask, render_template, request, redirect, url_for
+import database
+
+# Install dependencies from requirements.txt before starting Flask.
+
+database.setup_database("pets")
+
+app = Flask(__name__)
+
+
+def error_page(message, status=400):
+    # Simple text response page, as requested.
+    return message, status, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.route("/", methods=["GET"])
+@app.route("/list", methods=["GET"])
+def get_list():
+    pets = database.get_pets()
+    return render_template("list.html", pets=pets)
+
+
+@app.route("/create", methods=["GET"])
+def get_create():
+    owners = database.get_owners()
+    return render_template("create.html", owners=owners)
+
+
+@app.route("/create", methods=["POST"])
+def post_create():
+    data = dict(request.form)
+    try:
+        database.create_pet(data)
+        return redirect(url_for("get_list"))
+    except (ValueError, database.ConstraintError) as e:
+        return error_page(f"Error: {e}", 400)
+    except Exception as e:
+        return error_page(f"Unexpected error creating pet: {e}", 500)
+
+
+@app.route("/delete/&lt;id&gt;", methods=["GET"])
+def get_delete(id):
+    try:
+        database.delete_pet(id)
+        return redirect(url_for("get_list"))
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except database.NotFoundError as e:
+        return error_page(f"Error: {e}", 404)
+    except Exception as e:
+        return error_page(f"Unexpected error deleting pet: {e}", 500)
+
+
+@app.route("/update/&lt;id&gt;", methods=["GET"])
+def get_update(id):
+    try:
+        data = database.get_pet(id)
+        if data is None:
+            return error_page("Error: pet not found.", 404)
+        owners = database.get_owners()
+        return render_template("update.html", data=data, owners=owners)
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except Exception as e:
+        return error_page(f"Unexpected error loading pet: {e}", 500)
+
+
+@app.route("/update/&lt;id&gt;", methods=["POST"])
+def post_update(id):
+    data = dict(request.form)
+    try:
+        database.update_pet(id, data)
+        return redirect(url_for("get_list"))
+    except (ValueError, database.ConstraintError) as e:
+        return error_page(f"Error: {e}", 400)
+    except database.NotFoundError as e:
+        return error_page(f"Error: {e}", 404)
+    except Exception as e:
+        return error_page(f"Unexpected error updating pet: {e}", 500)
+
+
+@app.route("/owners", methods=["GET"])
+def get_owners_list():
+    owners = database.get_owners()
+    return render_template("owner_list.html", owners=owners)
+
+
+@app.route("/owner/create", methods=["GET"])
+def get_owner_create():
+    return render_template("owner_create.html")
+
+
+@app.route("/owner/create", methods=["POST"])
+def post_owner_create():
+    data = dict(request.form)
+    try:
+        database.create_owner(data)
+        return redirect(url_for("get_owners_list"))
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except Exception as e:
+        return error_page(f"Unexpected error creating owner: {e}", 500)
+
+
+@app.route("/owner/delete/&lt;id&gt;", methods=["GET"])
+def get_owner_delete(id):
+    try:
+        database.delete_owner(id)
+        return redirect(url_for("get_owners_list"))
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except database.NotFoundError as e:
+        return error_page(f"Error: {e}", 404)
+    except database.ConstraintError as e:
+        return error_page(f"Error: {e}", 400)
+    except Exception as e:
+        return error_page(f"Unexpected error deleting owner: {e}", 500)
+
+
+@app.route("/owner/update/&lt;id&gt;", methods=["GET"])
+def get_owner_update(id):
+    try:
+        data = database.get_owner(id)
+        if data is None:
+            return error_page("Error: owner not found.", 404)
+        return render_template("owner_update.html", data=data)
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except Exception as e:
+        return error_page(f"Unexpected error loading owner: {e}", 500)
+
+
+@app.route("/owner/update/&lt;id&gt;", methods=["POST"])
+def post_owner_update(id):
+    data = dict(request.form)
+    try:
+        database.update_owner(id, data)
+        return redirect(url_for("get_owners_list"))
+    except ValueError as e:
+        return error_page(f"Error: {e}", 400)
+    except database.NotFoundError as e:
+        return error_page(f"Error: {e}", 404)
+    except Exception as e:
+        return error_page(f"Unexpected error updating owner: {e}", 500)
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    try:
+        database.get_pets()
+        database.get_owners()
+        return error_page("ok", 200)
+    except Exception as e:
+        return error_page(f"Error checking health: {e}", 500)
+</code></pre></section>
+<section class="source-file" id="file-64617461626173652e7079" aria-labelledby="title-file-64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-64617461626173652e7079">database.py</h2></header><pre><code>"""Pets data layer backed by MongoDB through PyMongo, with indexes.
+
+The application uses string IDs; stored _id and owner_id values are ObjectIds.
+PyMongo: https://www.mongodb.com/docs/languages/python/pymongo-driver/current/
+ObjectId: https://pymongo.readthedocs.io/en/stable/api/bson/objectid.html
+Indexes: https://www.mongodb.com/docs/manual/indexes/
+
+Chapter 14 change: setup_database() now calls ensure_indexes(), which creates
+the indexes listed in INDEXES. MongoDB always indexes _id on its own.
+"""
+import os
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+from bson.errors import InvalidId
+
+from bson.objectid import ObjectId
+
+try:
+    from mongita import MongitaClientMemory
+except ImportError:  # pragma: no cover - some mongita installs may omit this helper
+    MongitaClientMemory = None
+
+try:
+    import pytest
+except ImportError:  # pragma: no cover - only needed when running the tests
+    pytest = None
+
+client = None
+db = None
+owners_collection = None
+pets_collection = None
+
+# Each entry: (collection name, key field, index name, extra options).
+# create_index is idempotent: asking for an index that already exists with the
+# same definition does nothing. An explicit name keeps the names predictable
+# in mongosh and in explain output.
+INDEXES = [
+    ("pets", "owner_id", "pets_owner_id", {}),
+    ("pets", "name", "pets_name", {}),
+    ("pets", "type", "pets_type", {}),
+    ("owners", "name", "owners_name", {}),
+]
+
+
+class NotFoundError(LookupError):
+    pass
+
+
+class ConstraintError(ValueError):
+    pass
+
+
+def initialize(database_name="pets", client_factory=None):
+    global client, db, owners_collection, pets_collection
+
+    close_connection()
+    if client_factory is None:
+        uri = os.environ.get("MONGODB_URI")
+        if not uri:
+            raise RuntimeError("Set MONGODB_URI before starting the application.")
+        client = MongoClient(
+            uri, server_api=ServerApi("1"), serverSelectionTimeoutMS=10000
+        )
+        try:
+            # Force a connection now, so a bad configuration fails at startup.
+            client.admin.command("ping")
+        except Exception:
+            close_connection()
+            raise
+    else:
+        # Tests can supply a local memory store without contacting Atlas.
+        client = client_factory()
+    db = client[database_name]
+    owners_collection = db.owners
+    pets_collection = db.pets
+
+
+def test_initialize_sets_globals():
+    initialize("pytest_initialize", client_factory=MongitaClientMemory)
+    assert client is not None
+    assert db is not None
+    assert owners_collection is not None
+    assert pets_collection is not None
+    close_connection()
+
+
+def ensure_indexes():
+    """Create the indexes in INDEXES and return the names that were requested.
+
+    Run this against a real MongoDB server such as Atlas. Errors, such as a
+    missing permission, are not caught here: they should be visible.
+    """
+    collections = {"owners": owners_collection, "pets": pets_collection}
+    created = []
+    for collection_name, field, index_name, options in INDEXES:
+        collections[collection_name].create_index(
+            [(field, 1)], name=index_name, **options
+        )
+        created.append(index_name)
+    return created
+
+
+def setup_database(database_name="pets", client_factory=None):
+    """Connect, check read access, and make sure the indexes exist.
+
+    Collection handles do not create stored collections. MongoDB creates them
+    on the first insert unless they are explicitly created beforehand.
+    Creating an index on a missing collection creates the collection, which is
+    fine here: it stays empty until the first insert. No records are cleared
+    or seeded.
+    """
+    initialize(database_name, client_factory=client_factory)
+    owners_collection.count_documents({})
+    pets_collection.count_documents({})
+    ensure_indexes()
+
+
+def test_setup_database_opens_collections_and_creates_indexes(monkeypatch):
+    # Mongita cannot create named indexes, so stand in for ensure_indexes().
+    calls = []
+    monkeypatch.setitem(globals(), "ensure_indexes", lambda: calls.append("called"))
+    setup_database("pytest_setup", client_factory=MongitaClientMemory)
+    assert calls == ["called"]
+    assert owners_collection.count_documents({}) == 0
+    assert pets_collection.count_documents({}) == 0
+    close_connection()
+
+
+def test_ensure_indexes_requests_each_index(monkeypatch):
+    from unittest.mock import MagicMock
+
+    owners, pets = MagicMock(), MagicMock()
+    monkeypatch.setitem(globals(), "owners_collection", owners)
+    monkeypatch.setitem(globals(), "pets_collection", pets)
+    assert ensure_indexes() == [name for _, _, name, _ in INDEXES]
+    pets.create_index.assert_any_call([("owner_id", 1)], name="pets_owner_id")
+    pets.create_index.assert_any_call([("name", 1)], name="pets_name")
+    pets.create_index.assert_any_call([("type", 1)], name="pets_type")
+    owners.create_index.assert_called_once_with([("name", 1)], name="owners_name")
+
+
+def close_connection():
+    global client, db, owners_collection, pets_collection
+
+    if client is not None:
+        try:
+            client.close()
+        except Exception:
+            pass
+    client = None
+    db = None
+    owners_collection = None
+    pets_collection = None
+
+
+def test_close_connection_resets_globals():
+    initialize("pytest_close", client_factory=MongitaClientMemory)
+    close_connection()
+    assert client is None
+    assert db is None
+    assert owners_collection is None
+    assert pets_collection is None
+
+
+def _normalize_age(value):
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return 0
+    try:
+        age = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Age must be a whole number.") from exc
+    if age &lt; 0:
+        raise ValueError("Age must be non-negative.")
+    return age
+
+
+def _require_text(value, field_name):
+    text = (value or "").strip()
+    if text == "":
+        raise ValueError(f"{field_name} is required.")
+    return text
+
+
+def _to_object_id(value, field_name="id"):
+    # A URL/form supplies text; an _id filter needs the stored ObjectId type.
+    try:
+        return ObjectId(str(value))
+    except (InvalidId, TypeError) as exc:
+        raise ValueError(f"{field_name} must be a valid ObjectId string.") from exc
+
+
+def _require_owner(owner_id):
+    object_id = _to_object_id(owner_id, "owner_id")
+    owner = owners_collection.find_one({"_id": object_id})
+    if owner is None:
+        raise ConstraintError("owner_id does not reference an existing owner.")
+    return object_id
+
+
+def _require_existing_pet(id):
+    object_id = _to_object_id(id, "pet id")
+    pet = pets_collection.find_one({"_id": object_id})
+    if pet is None:
+        raise NotFoundError("pet not found.")
+    return object_id, pet
+
+
+def _require_existing_owner(id):
+    object_id = _to_object_id(id, "owner id")
+    owner = owners_collection.find_one({"_id": object_id})
+    if owner is None:
+        raise NotFoundError("owner not found.")
+    return object_id, owner
+
+
+def _normalize_pet_data(data):
+    owner_id = data.get("owner_id")
+    if (owner_id or "").strip() == "":
+        raise ValueError("owner_id is required.")
+
+    return {
+        "name": _require_text(data.get("name"), "name"),
+        "type": _require_text(data.get("type"), "type"),
+        "age": _normalize_age(data.get("age")),
+        "owner_id": _require_owner(owner_id),
+    }
+
+
+def _normalize_owner_data(data):
+    return {
+        "name": _require_text(data.get("name"), "name"),
+        "city": (data.get("city") or "").strip() or None,
+        "type_of_home": (data.get("type_of_home") or "").strip() or None,
+    }
+
+
+def pet_to_dict(pet):
+    # Keep BSON identifiers inside this layer; the app receives ordinary strings.
+    return {
+        "id": str(pet["_id"]),
+        "name": pet["name"],
+        "type": pet["type"],
+        "age": pet["age"],
+        "owner_id": str(pet["owner_id"]),
+    }
+
+
+def test_pet_to_dict():
+    sample = {
+        "_id": ObjectId("67d8c61b5180a31695e90744"),
+        "name": "meercat",
+        "type": "mammal",
+        "age": 2,
+        "owner_id": ObjectId("67d8c61b5180a31695e90745"),
+    }
+    converted = pet_to_dict(sample)
+    assert converted["id"] == "67d8c61b5180a31695e90744"
+    assert converted["owner_id"] == "67d8c61b5180a31695e90745"
+    assert converted["name"] == "meercat"
+    assert converted["type"] == "mammal"
+    assert converted["age"] == 2
+
+
+def owner_to_dict(owner):
+    return {
+        "id": str(owner["_id"]),
+        "name": owner["name"],
+        "city": owner.get("city"),
+        "type_of_home": owner.get("type_of_home"),
+    }
+
+
+def test_owner_to_dict():
+    sample = {
+        "_id": ObjectId("67d8c61b5180a31695e90746"),
+        "name": "greg",
+        "city": "Portland",
+        "type_of_home": "condo",
+    }
+    converted = owner_to_dict(sample)
+    assert converted["id"] == "67d8c61b5180a31695e90746"
+    assert converted["name"] == "greg"
+    assert converted["city"] == "Portland"
+    assert converted["type_of_home"] == "condo"
+
+
+def _seed_test_database(database_name="pytest_seed"):
+    initialize(database_name, client_factory=MongitaClientMemory)
+
+    owners_collection.delete_many({})
+    pets_collection.delete_many({})
+
+    owners = [
+        {"name": "greg", "city": "Portland", "type_of_home": "condo"},
+        {"name": "david", "city": "Seattle", "type_of_home": "farm"},
+    ]
+    owner_ids = {}
+    for owner in owners:
+        owner_id = create_owner(owner)
+        owner_ids[owner["name"]] = owner_id
+
+    pets = [
+        {"name": "dorothy", "type": "dog", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "suzy", "type": "mouse", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "casey", "type": "dog", "age": 9, "owner_id": owner_ids["greg"]},
+        {"name": "heidi", "type": "cat", "age": 15, "owner_id": owner_ids["david"]},
+    ]
+    for pet in pets:
+        create_pet(pet)
+
+    return owner_ids
+
+
+def get_pets():
+    return [pet_to_dict(pet) for pet in pets_collection.find()]
+
+
+def test_get_pets():
+    owner_ids = _seed_test_database()
+    pets = get_pets()
+    assert type(pets) is list
+    assert len(pets) &gt;= 1
+    assert type(pets[0]) is dict
+    for key in ["id", "name", "type", "age", "owner_id"]:
+        assert key in pets[0]
+    assert type(pets[0]["id"]) is str
+    assert type(pets[0]["owner_id"]) is str
+    assert pets[0]["owner_id"] in owner_ids.values()
+
+
+def get_pet(id):
+    object_id = _to_object_id(id, "pet id")
+    pet = pets_collection.find_one({"_id": object_id})
+    if pet is None:
+        return None
+    return pet_to_dict(pet)
+
+
+def test_get_pet():
+    owner_ids = _seed_test_database()
+    pet = get_pets()[0]
+    fetched = get_pet(pet["id"])
+    assert fetched is not None
+    assert fetched["id"] == pet["id"]
+    assert fetched["owner_id"] in owner_ids.values()
+
+
+def test_get_pet_missing_returns_none():
+    _seed_test_database()
+    assert get_pet("67d8c61b5180a31695e907ff") is None
+
+
+def create_pet(data):
+    pet = _normalize_pet_data(data)
+    result = pets_collection.insert_one(pet)
+    # insert_one returns an ObjectId; expose its 24-character text representation.
+    return str(result.inserted_id)
+
+
+def test_create_pet_and_get_pet():
+    owner_ids = _seed_test_database()
+    new_id = create_pet(
+        {
+            "name": "walter",
+            "age": "2",
+            "type": "mouse",
+            "owner_id": owner_ids["greg"],
+        }
+    )
+    assert type(new_id) is str
+    pet = get_pet(new_id)
+    assert pet is not None
+    assert pet["id"] == new_id
+    assert pet["name"] == "walter"
+    assert pet["age"] == 2
+    assert pet["type"] == "mouse"
+    assert pet["owner_id"] == owner_ids["greg"]
+
+
+def test_create_pet_requires_name():
+    owner_ids = _seed_test_database()
+    with pytest.raises(ValueError, match="name is required"):
+        create_pet(
+            {
+                "name": "",
+                "age": 1,
+                "type": "cat",
+                "owner_id": owner_ids["greg"],
+            }
+        )
+
+
+def test_create_pet_requires_type():
+    owner_ids = _seed_test_database()
+    with pytest.raises(ValueError, match="type is required"):
+        create_pet(
+            {
+                "name": "no-type",
+                "age": 1,
+                "type": "",
+                "owner_id": owner_ids["greg"],
+            }
+        )
+
+
+def test_create_pet_requires_owner():
+    _seed_test_database()
+    with pytest.raises(ValueError, match="owner_id is required"):
+        create_pet({"name": "ghost", "age": 1, "type": "cat", "owner_id": ""})
+
+
+def test_create_pet_rejects_unknown_owner():
+    _seed_test_database()
+    with pytest.raises(ConstraintError, match="owner_id"):
+        create_pet(
+            {
+                "name": "ghost",
+                "age": 1,
+                "type": "cat",
+                "owner_id": "000000000000000000000000",
+            }
+        )
+
+
+def test_invalid_pet_id_rejected():
+    _seed_test_database()
+    with pytest.raises(ValueError, match="ObjectId"):
+        get_pet("not-an-object-id")
+
+
+def update_pet(id, data):
+    object_id, _ = _require_existing_pet(id)
+    pet = _normalize_pet_data(data)
+    pets_collection.update_one({"_id": object_id}, {"$set": pet})
+
+
+def test_update_pet():
+    owner_ids = _seed_test_database()
+    pet = get_pets()[0]
+    update_pet(
+        pet["id"],
+        {"name": "updated", "age": "8", "type": "dog", "owner_id": owner_ids["david"]},
+    )
+    updated = get_pet(pet["id"])
+    assert updated is not None
+    assert updated["name"] == "updated"
+    assert updated["age"] == 8
+    assert updated["type"] == "dog"
+    assert updated["owner_id"] == owner_ids["david"]
+
+
+def test_update_pet_rejects_missing_pet():
+    owner_ids = _seed_test_database()
+    with pytest.raises(NotFoundError, match="pet not found"):
+        update_pet(
+            "67d8c61b5180a31695e907ff",
+            {"name": "updated", "age": 8, "type": "dog", "owner_id": owner_ids["greg"]},
+        )
+
+
+def delete_pet(id):
+    object_id, _ = _require_existing_pet(id)
+    pets_collection.delete_one({"_id": object_id})
+
+
+def test_delete_pet():
+    owner_ids = _seed_test_database()
+    new_id = create_pet(
+        {"name": "delete_me", "age": 3, "type": "fish", "owner_id": owner_ids["greg"]}
+    )
+    delete_pet(new_id)
+    assert get_pet(new_id) is None
+
+
+def test_delete_missing_pet_raises_not_found():
+    _seed_test_database()
+    with pytest.raises(NotFoundError, match="pet not found"):
+        delete_pet("000000000000000000000000")
+
+
+def get_owners():
+    return [owner_to_dict(owner) for owner in owners_collection.find()]
+
+
+def test_get_owners():
+    _seed_test_database()
+    owners = get_owners()
+    assert type(owners) is list
+    assert len(owners) == 2
+    assert type(owners[0]) is dict
+    for key in ["id", "name", "city", "type_of_home"]:
+        assert key in owners[0]
+
+
+def get_owner(id):
+    object_id = _to_object_id(id, "owner id")
+    owner = owners_collection.find_one({"_id": object_id})
+    if owner is None:
+        return None
+    return owner_to_dict(owner)
+
+
+def test_get_owner():
+    owner_ids = _seed_test_database()
+    owner = get_owner(owner_ids["greg"])
+    assert owner is not None
+    assert owner["id"] == owner_ids["greg"]
+    assert owner["name"] == "greg"
+    assert owner["city"] == "Portland"
+
+
+def test_get_owner_missing_returns_none():
+    _seed_test_database()
+    assert get_owner("67d8c61b5180a31695e907ff") is None
+
+
+def create_owner(data):
+    owner = _normalize_owner_data(data)
+    result = owners_collection.insert_one(owner)
+    # insert_one returns an ObjectId; expose its 24-character text representation.
+    return str(result.inserted_id)
+
+
+def test_create_owner_and_get_owner():
+    _seed_test_database()
+    new_id = create_owner({"name": "solo", "city": "Akron", "type_of_home": "house"})
+    assert type(new_id) is str
+    owner = get_owner(new_id)
+    assert owner is not None
+    assert owner["id"] == new_id
+    assert owner["name"] == "solo"
+    assert owner["city"] == "Akron"
+    assert owner["type_of_home"] == "house"
+
+
+def test_create_owner_requires_name():
+    _seed_test_database()
+    with pytest.raises(ValueError, match="name is required"):
+        create_owner({"name": "", "city": "Akron", "type_of_home": "house"})
+
+
+def update_owner(id, data):
+    object_id, _ = _require_existing_owner(id)
+    owner = _normalize_owner_data(data)
+    owners_collection.update_one({"_id": object_id}, {"$set": owner})
+
+
+def test_update_owner():
+    owner_ids = _seed_test_database()
+    update_owner(
+        owner_ids["greg"],
+        {"name": "gregory", "city": "Salem", "type_of_home": "cabin"},
+    )
+    updated = get_owner(owner_ids["greg"])
+    assert updated is not None
+    assert updated["name"] == "gregory"
+    assert updated["city"] == "Salem"
+    assert updated["type_of_home"] == "cabin"
+
+
+def test_update_owner_rejects_missing_owner():
+    _seed_test_database()
+    with pytest.raises(NotFoundError, match="owner not found"):
+        update_owner(
+            "67d8c61b5180a31695e907ff",
+            {"name": "missing", "city": "Nowhere", "type_of_home": "house"},
+        )
+
+
+def delete_owner(id):
+    object_id, _ = _require_existing_owner(id)
+    # This lookup by owner_id is the query the pets_owner_id index speeds up.
+    # Without that index MongoDB examines every pet document to answer it.
+    pet = pets_collection.find_one({"owner_id": object_id})
+    if pet is not None:
+        raise ConstraintError(
+            "Cannot delete this owner because they have pets. Please delete their pets first."
+        )
+
+    owners_collection.delete_one({"_id": object_id})
+
+
+def test_delete_owner_restricted():
+    owner_ids = _seed_test_database()
+    with pytest.raises(ConstraintError, match="have pets"):
+        delete_owner(owner_ids["greg"])
+
+
+def test_delete_owner_then_pet_succeeds():
+    _seed_test_database()
+    owner_id = create_owner({"name": "solo", "city": "Akron", "type_of_home": "house"})
+    pet_id = create_pet(
+        {"name": "onepet", "age": 3, "type": "cat", "owner_id": owner_id}
+    )
+
+    with pytest.raises(ConstraintError):
+        delete_owner(owner_id)
+
+    delete_pet(pet_id)
+    delete_owner(owner_id)
+    assert get_owner(owner_id) is None
+
+
+def test_delete_missing_owner_raises_not_found():
+    _seed_test_database()
+    with pytest.raises(NotFoundError, match="owner not found"):
+        delete_owner("000000000000000000000000")
+
+
+if __name__ == "__main__":
+    owner_ids = _seed_test_database("manual_seed")
+    assert len(get_pets()) == 4
+    assert len(get_owners()) == 2
+    assert get_owner(owner_ids["greg"]) is not None
+    close_connection()
+    print("done.")
+</code></pre></section>
+<section class="source-file" id="file-6578706c61696e2d717565726965732e7079" aria-labelledby="title-file-6578706c61696e2d717565726965732e7079" hidden><header class="file-header"><h2 id="title-file-6578706c61696e2d717565726965732e7079">explain-queries.py</h2></header><pre><code>"""Show the indexes and query plans for the Pets application's lookups.
+
+Run this against Atlas after setting MONGODB_URI. It never inserts, updates,
+or deletes anything. It prints, for each query, whether MongoDB used an index
+(IXSCAN) or read the whole collection (COLLSCAN), and how many documents it
+examined to return how many.
+
+Explain output is a nested document whose exact layout can differ between
+MongoDB server versions, so this script searches for the stage names instead
+of relying on one fixed path.
+"""
+from bson.objectid import ObjectId
+
+import database
+
+
+def find_stages(plan, found=None):
+    """Collect every 'stage' name found anywhere inside an explain plan."""
+    if found is None:
+        found = []
+    if isinstance(plan, dict):
+        if "stage" in plan:
+            found.append(plan["stage"])
+        for value in plan.values():
+            find_stages(value, found)
+    elif isinstance(plan, list):
+        for item in plan:
+            find_stages(item, found)
+    return found
+
+
+def explain(collection, query):
+    return collection.find(query).explain()
+
+
+def describe(label, collection, query):
+    result = explain(collection, query)
+    stages = find_stages(result.get("queryPlanner", {}).get("winningPlan", {}))
+    stats = result.get("executionStats", {})
+    print(label)
+    print("  query:", query)
+    print("  plan stages:", " -&gt; ".join(stages) or "(none found)")
+    if "COLLSCAN" in stages:
+        print("  result: reads the whole collection")
+    elif "IXSCAN" in stages:
+        print("  result: uses an index")
+    if stats:
+        print("  documents examined:", stats.get("totalDocsExamined"))
+        print("  keys examined:", stats.get("totalKeysExamined"))
+        print("  documents returned:", stats.get("nReturned"))
+    print()
+
+
+def main():
+    try:
+        database.setup_database("pets")
+        for collection in (database.owners_collection, database.pets_collection):
+            print(f"Indexes on {collection.name}:")
+            for name, info in collection.index_information().items():
+                print("  ", name, info.get("key"))
+            print()
+
+        sample_owner = database.owners_collection.find_one()
+        owner_id = sample_owner["_id"] if sample_owner else ObjectId()
+        sample_pet = database.pets_collection.find_one()
+        pet_name = sample_pet["name"] if sample_pet else "Casey"
+        pet_type = sample_pet["type"] if sample_pet else "dog"
+        owner_name = sample_owner["name"] if sample_owner else "Alex"
+
+        describe("Pet lookup by identifier (automatic _id index)",
+                 database.pets_collection, {"_id": sample_pet["_id"] if sample_pet else ObjectId()})
+        describe("Does this owner still have pets? (used when deleting an owner)",
+                 database.pets_collection, {"owner_id": owner_id})
+        describe("Pets by name", database.pets_collection, {"name": pet_name})
+        describe("Pets by type", database.pets_collection, {"type": pet_type})
+        describe("Owners by name", database.owners_collection, {"name": owner_name})
+        describe("Pets by age (no index on age)",
+                 database.pets_collection, {"age": {"$gte": 0}})
+    finally:
+        database.close_connection()
+
+
+if __name__ == "__main__":
+    main()
+</code></pre></section>
+<section class="source-file" id="file-6578706c6f72652d696d64622d696e64657865732e7079" aria-labelledby="title-file-6578706c6f72652d696d64622d696e64657865732e7079" hidden><header class="file-header"><h2 id="title-file-6578706c6f72652d696d64622d696e64657865732e7079">explore-imdb-indexes.py</h2></header><pre><code>"""Time IMDb queries in Atlas before and after building indexes.
+
+Usage:
+    python3 explore-imdb-indexes.py [--database imdb]
+
+Run import-imdb-mongo.py first. For each experiment this script prints the
+query, the plan stage MongoDB chose (COLLSCAN or IXSCAN), how many documents
+MongoDB examined, how many it returned, and the best of three timings. Then it
+builds the index for that experiment, prints how long the build took, and
+measures the same query again.
+
+It creates only indexes whose names start with idx_, and it drops those at the
+start, so you can run it again. It never changes the data.
+
+Your numbers will not match anyone else's. They depend on your cluster tier,
+your network, and whether Atlas already has the data in memory. Record your
+own results in the table in the chapter exercise.
+"""
+import argparse
+import os
+import time
+
+from pymongo import ASCENDING, DESCENDING, MongoClient
+from pymongo.server_api import ServerApi
+
+# Each experiment: (heading, collection, filter, sort, index keys, index name).
+# sort is None when the query has no ordering.
+EXPERIMENTS = [
+    (
+        "One title, one field",
+        "titles",
+        {"primary_title": "The Godfather"},
+        None,
+        [("primary_title", ASCENDING)],
+        "idx_titles_primary_title",
+    ),
+    (
+        "Two conditions",
+        "titles",
+        {"title_type": "movie", "start_year": 1994},
+        None,
+        [("title_type", ASCENDING), ("start_year", ASCENDING)],
+        "idx_titles_type_year",
+    ),
+    (
+        "Top ten by votes",
+        "ratings",
+        {},
+        [("num_votes", DESCENDING)],
+        [("num_votes", DESCENDING)],
+        "idx_ratings_num_votes",
+    ),
+]
+
+
+def connect(database_name):
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        raise SystemExit("Set MONGODB_URI before running this script.")
+    client = MongoClient(uri, server_api=ServerApi("1"), serverSelectionTimeoutMS=10000)
+    client.admin.command("ping")
+    return client, client[database_name]
+
+
+def stages(plan):
+    """Collect every stage name in a winning plan, from the top down."""
+    found = []
+    while plan:
+        found.append(plan["stage"])
+        plan = plan.get("inputStage")
+    return found
+
+
+def explain(collection, query, sort):
+    cursor = collection.find(query)
+    if sort:
+        cursor = cursor.sort(sort)
+    if sort:
+        cursor = cursor.limit(10)
+    report = cursor.explain()
+    winning = report["queryPlanner"]["winningPlan"]
+    executed = report["executionStats"]
+    return (
+        " &gt; ".join(stages(winning)),
+        executed["totalDocsExamined"],
+        executed["nReturned"],
+    )
+
+
+def best_of_three(collection, query, sort):
+    best = None
+    for _ in range(3):
+        cursor = collection.find(query)
+        if sort:
+            cursor = cursor.sort(sort).limit(10)
+        started = time.perf_counter()
+        list(cursor)
+        elapsed = (time.perf_counter() - started) * 1000
+        best = elapsed if best is None else min(best, elapsed)
+    return best
+
+
+def drop_experiment_indexes(database):
+    for name in ("titles", "ratings"):
+        collection = database[name]
+        for index in collection.list_indexes():
+            if index["name"].startswith("idx_"):
+                collection.drop_index(index["name"])
+
+
+def measure(label, collection, query, sort):
+    plan, examined, returned = explain(collection, query, sort)
+    milliseconds = best_of_three(collection, query, sort)
+    print(f"  {label}")
+    print(f"    plan: {plan}")
+    print(f"    documents examined: {examined:,}   returned: {returned:,}")
+    print(f"    best of three: {milliseconds:,.1f} ms")
+
+
+def run(database_name):
+    client, database = connect(database_name)
+    try:
+        drop_experiment_indexes(database)
+        for heading, name, query, sort, keys, index_name in EXPERIMENTS:
+            collection = database[name]
+            print(f"\n{heading}: {name}.find({query})" + (f" sorted by {sort}" if sort else ""))
+            measure("before the index", collection, query, sort)
+            started = time.perf_counter()
+            collection.create_index(keys, name=index_name)
+            print(f"  built {index_name} in {time.perf_counter() - started:.1f} seconds")
+            measure("after the index", collection, query, sort)
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Time IMDb queries before and after indexes.")
+    parser.add_argument("--database", default="imdb")
+    args = parser.parse_args()
+    run(args.database)
+</code></pre></section>
+<section class="source-file" id="file-696d706f72742d696d64622d6d6f6e676f2e7079" aria-labelledby="title-file-696d706f72742d696d64622d6d6f6e676f2e7079" hidden><header class="file-header"><h2 id="title-file-696d706f72742d696d64622d6d6f6e676f2e7079">import-imdb-mongo.py</h2></header><pre><code>"""Load IMDb title.basics and title.ratings into MongoDB Atlas, in chunks.
+
+Usage:
+    python3 import-imdb-mongo.py [--data-dir data] [--database imdb] [--replace]
+
+Reads the same two compressed files the Chapter 9 loader uses
+(title.basics.tsv.gz and title.ratings.tsv.gz), one row at a time, so memory
+use stays small. Documents go to Atlas in batches of 10,000 with insert_many.
+
+Collections: titles and ratings. The IMDb identifier (tconst, such as
+tt0000001) is stored as the document's _id, so MongoDB's automatic _id index
+plays the role of the SQLite primary key. No other indexes are created here.
+Building them is the exercise in Chapter 14.
+
+Set MONGODB_URI first, the same way as for the pets application.
+The IMDb files are for personal, non-commercial use. Do not redistribute them
+or commit them to a public repository.
+"""
+import argparse
+import csv
+import gzip
+from itertools import islice
+import os
+from pathlib import Path
+import time
+
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+
+BATCH_SIZE = 10_000
+
+# (file name, collection, [(field, kind), ...]). The first field becomes _id.
+FILES = [
+    (
+        "title.basics.tsv.gz",
+        "titles",
+        [
+            ("_id", "text"),
+            ("title_type", "text"),
+            ("primary_title", "text"),
+            ("original_title", "text"),
+            ("is_adult", "int"),
+            ("start_year", "int"),
+            ("end_year", "int"),
+            ("runtime_minutes", "int"),
+            ("genres", "text"),
+        ],
+    ),
+    (
+        "title.ratings.tsv.gz",
+        "ratings",
+        [("_id", "text"), ("average_rating", "real"), ("num_votes", "int")],
+    ),
+]
+
+
+def convert(value, kind):
+    """IMDb writes a missing value as \\N. Convert it to None, and numbers to numbers."""
+    if value == "\\N":
+        return None
+    if kind == "int":
+        return int(value)
+    if kind == "real":
+        return float(value)
+    return value
+
+
+def documents(path, fields):
+    with gzip.open(path, "rt", encoding="utf-8", newline="") as handle:
+        reader = csv.reader(handle, delimiter="\t", quoting=csv.QUOTE_NONE)
+        next(reader)  # header line
+        for record in reader:
+            yield {
+                name: convert(value, kind)
+                for (name, kind), value in zip(fields, record)
+            }
+
+
+def load(collection, path, fields, limit=None):
+    source = documents(path, fields)
+    if limit is not None:
+        source = islice(source, limit)
+    total = 0
+    while True:
+        batch = list(islice(source, BATCH_SIZE))
+        if not batch:
+            break
+        collection.insert_many(batch, ordered=False)
+        before = total
+        total += len(batch)
+        if total // 500_000 &gt; before // 500_000:
+            print(f"  {collection.name}: {total:,} documents", flush=True)
+    print(f"  {collection.name}: {total:,} documents in total")
+    return total
+
+
+def connect():
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        raise SystemExit("Set MONGODB_URI before running this script.")
+    client = MongoClient(uri, server_api=ServerApi("1"), serverSelectionTimeoutMS=10000)
+    client.admin.command("ping")
+    return client
+
+
+def import_all(data_dir, database_name, replace, limit=None):
+    if limit is not None and limit &lt; 1:
+        raise SystemExit("--limit must be positive.")
+    for filename, _, _ in FILES:
+        if not (Path(data_dir) / filename).is_file():
+            raise SystemExit(f"Missing input: {Path(data_dir) / filename}")
+    client = connect()
+    try:
+        database = client[database_name]
+        existing = set(database.list_collection_names())
+        for _, collection_name, _ in FILES:
+            if collection_name in existing:
+                if not replace:
+                    raise SystemExit(
+                        f"{database_name}.{collection_name} already exists. "
+                        "Use --replace to rebuild it."
+                    )
+                database.drop_collection(collection_name)
+        for filename, collection_name, fields in FILES:
+            started = time.perf_counter()
+            print(f"Loading {filename}")
+            load(database[collection_name], Path(data_dir) / filename, fields, limit)
+            print(f"  {time.perf_counter() - started:.1f} seconds")
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load IMDb files into MongoDB Atlas.")
+    parser.add_argument("--data-dir", default="data")
+    parser.add_argument("--database", default="imdb")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="drop the titles and ratings collections first if they exist",
+    )
+    parser.add_argument("--limit", type=int, help="maximum documents per collection")
+    args = parser.parse_args()
+    import_all(args.data_dir, args.database, args.replace, args.limit)
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732d746573742e747874" aria-labelledby="title-file-726571756972656d656e74732d746573742e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732d746573742e747874">requirements-test.txt</h2></header><pre><code>-r requirements.txt
+mongita==1.2.0
+pytest&gt;=8,&lt;9
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>Flask==3.1.3
+pymongo==4.16.0
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the create template.
+    &lt;form action="/create" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" /&gt;&lt;/p&gt;
+        &lt;p&gt;Age:&lt;input name="age" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type:&lt;input name="type" /&gt;&lt;/p&gt;
+        &lt;p&gt;Owner:
+            &lt;select name="owner_id"&gt;
+                &lt;option value=""&gt;-- Select an Owner --&lt;/option&gt;
+                {% for owner in owners %}
+                &lt;option value="{{ owner['id'] }}"&gt;{{ owner['name'] }}&lt;/option&gt;
+                {% endfor %}
+            &lt;/select&gt;
+        &lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Create&lt;/button&gt;
+        &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</h2></header><pre><code>&lt;html&gt;
+&lt;h3&gt;Pets:&lt;/h3&gt;
+&lt;table&gt;
+    &lt;tr&gt;
+        &lt;th&gt;ID&lt;/th&gt;
+        &lt;th&gt;Name&lt;/th&gt;
+        &lt;th&gt;Type&lt;/th&gt;
+        &lt;th&gt;Age&lt;/th&gt;
+        &lt;th&gt;Owner ID&lt;/th&gt;
+    &lt;/tr&gt;
+    {% for pet in pets %}
+    &lt;tr&gt;
+        &lt;td&gt;{{ pet['id'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['name'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['type'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['age'] }}&lt;/td&gt;
+        &lt;td&gt;{{ pet['owner_id'] }}&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/delete/{{pet['id']}}"&gt;Delete&lt;/a&gt;&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/update/{{pet['id']}}"&gt;Update&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    {% endfor %}
+&lt;/table&gt;
+&lt;hr /&gt;
+&lt;a href="/create"&gt;Create New Pet&lt;/a&gt;
+&lt;hr /&gt;
+&lt;a href="/owners"&gt;Manage Owners&lt;/a&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6f776e65725f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f6372656174652e68746d6c">templates/owner_create.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the owner create template.
+    &lt;form action="/owner/create" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" /&gt;&lt;/p&gt;
+        &lt;p&gt;City:&lt;input name="city" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type of Home:&lt;input name="type_of_home" /&gt;&lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Create&lt;/button&gt;
+        &lt;a href="/owners"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6f776e65725f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f6c6973742e68746d6c">templates/owner_list.html</h2></header><pre><code>&lt;html&gt;
+&lt;h3&gt;Owners:&lt;/h3&gt;
+&lt;table&gt;
+    &lt;tr&gt;
+        &lt;th&gt;ID&lt;/th&gt;
+        &lt;th&gt;Name&lt;/th&gt;
+        &lt;th&gt;City&lt;/th&gt;
+        &lt;th&gt;Type of Home&lt;/th&gt;
+    &lt;/tr&gt;
+    {% for owner in owners %}
+    &lt;tr&gt;
+        &lt;td&gt;{{ owner['id'] }}&lt;/td&gt;
+        &lt;td&gt;{{ owner['name'] }}&lt;/td&gt;
+        &lt;td&gt;{{ owner['city'] }}&lt;/td&gt;
+        &lt;td&gt;{{ owner['type_of_home'] }}&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/owner/delete/{{owner['id']}}"&gt;Delete&lt;/a&gt;&lt;/td&gt;
+        &lt;td&gt;&lt;a href="/owner/update/{{owner['id']}}"&gt;Update&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    {% endfor %}
+&lt;/table&gt;
+&lt;hr /&gt;
+&lt;a href="/owner/create"&gt;Create New Owner&lt;/a&gt;
+&lt;hr /&gt;
+&lt;a href="/list"&gt;Back to Pets&lt;/a&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6f776e65725f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6f776e65725f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6f776e65725f7570646174652e68746d6c">templates/owner_update.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the owner update template.
+    &lt;form action="/owner/update/{{data['id']}}" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" value="{{data['name']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;City:&lt;input name="city" value="{{data['city'] or ''}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type of Home:&lt;input name="type_of_home" value="{{data['type_of_home'] or ''}}" /&gt;&lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Update&lt;/button&gt;
+        &lt;a href="/owners"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</h2></header><pre><code>&lt;html&gt;
+
+&lt;head&gt;&lt;/head&gt;
+
+&lt;body&gt;
+    This is the update template.
+    &lt;form action="/update/{{data['id']}}" method="post"&gt;
+        &lt;hr /&gt;
+        &lt;p&gt;Name:&lt;input name="name" value="{{data['name']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Age:&lt;input name="age" value="{{data['age']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Type:&lt;input name="type" value="{{data['type']}}" /&gt;&lt;/p&gt;
+        &lt;p&gt;Owner:
+            &lt;select name="owner_id"&gt;
+                {% for owner in owners %}
+                &lt;option value="{{ owner['id'] }}" {% if owner['id'] == data['owner_id'] %}selected{% endif %}&gt;
+                    {{ owner['name'] }}
+                &lt;/option&gt;
+                {% endfor %}
+            &lt;/select&gt;
+        &lt;/p&gt;
+        &lt;hr /&gt;
+        &lt;button type="submit"&gt;Update&lt;/button&gt;
+        &lt;a href="/list"&gt;Cancel&lt;/a&gt;
+        &lt;hr /&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre></section>
+<section class="source-file" id="file-746573745f636f6e6e656374696f6e2e7079" aria-labelledby="title-file-746573745f636f6e6e656374696f6e2e7079" hidden><header class="file-header"><h2 id="title-file-746573745f636f6e6e656374696f6e2e7079">test_connection.py</h2></header><pre><code>"""Connection configuration tests; no Atlas account is contacted."""
+from unittest.mock import MagicMock
+import pytest
+import database
+
+
+def test_uri_is_required(monkeypatch):
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+    with pytest.raises(RuntimeError, match="Set MONGODB_URI"):
+        database.setup_database()
+    assert database.client is None
+
+
+def test_configured_client_is_pinged_and_reused(monkeypatch):
+    client = MagicMock()
+    factory = MagicMock(return_value=client)
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27099")
+    monkeypatch.setattr(database, "MongoClient", factory)
+    database.setup_database("pets")
+    assert factory.call_args.args == ("mongodb://localhost:27099",)
+    assert factory.call_args.kwargs["server_api"].version == "1"
+    client.admin.command.assert_called_once_with("ping")
+    assert database.db is client["pets"]
+    database.close_connection()
+    client.close.assert_called_once()
+
+
+def test_failed_ping_closes_client(monkeypatch):
+    client = MagicMock()
+    client.admin.command.side_effect = RuntimeError("unavailable")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27099")
+    monkeypatch.setattr(database, "MongoClient", lambda *a, **k: client)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        database.initialize()
+    client.close.assert_called_once()
+    assert database.client is None
+</code></pre></section>
+<section class="source-file" id="file-746573745f64617461626173655f63692e7079" aria-labelledby="title-file-746573745f64617461626173655f63692e7079" hidden><header class="file-header"><h2 id="title-file-746573745f64617461626173655f63692e7079">test_database_ci.py</h2></header><pre><code>import re
+
+import pytest
+
+import database
+from unittest.mock import patch
+
+# Import the routes without opening a network connection. Each test supplies
+# its own isolated memory database below.
+with patch.object(database, "setup_database"):
+    import app as webapp
+
+
+@pytest.fixture
+def client():
+    database.initialize("pytest_ci", client_factory=database.MongitaClientMemory)
+    database.owners_collection.delete_many({})
+    database.pets_collection.delete_many({})
+
+    with webapp.app.test_client() as test_client:
+        yield test_client
+
+    database.close_connection()
+
+
+def create_owner(client, name="greg", city="Portland", type_of_home="condo"):
+    response = client.post(
+        "/owner/create",
+        data={"name": name, "city": city, "type_of_home": type_of_home},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/owners")
+
+
+def get_owner_ids():
+    owners = database.get_owners()
+    return {owner["name"]: owner["id"] for owner in owners}
+
+
+def extract_first_pet_id(body):
+    match = re.search(r"/update/([0-9a-f]{24})", body)
+    assert match is not None
+    return match.group(1)
+
+
+def test_health_route(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == "ok"
+
+
+def test_owner_crud_flow(client):
+    create_owner(client, name="greg", city="Portland", type_of_home="condo")
+
+    response = client.get("/owners")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "greg" in body
+    assert "Portland" in body
+
+    owner_id = get_owner_ids()["greg"]
+
+    response = client.get(f"/owner/update/{owner_id}")
+    assert response.status_code == 200
+    assert "greg" in response.get_data(as_text=True)
+
+    response = client.post(
+        f"/owner/update/{owner_id}",
+        data={"name": "gregory", "city": "Salem", "type_of_home": "cabin"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/owners")
+
+    updated_owner = database.get_owner(owner_id)
+    assert updated_owner is not None
+    assert updated_owner["name"] == "gregory"
+    assert updated_owner["city"] == "Salem"
+    assert updated_owner["type_of_home"] == "cabin"
+
+
+def test_pet_crud_flow(client):
+    create_owner(client, name="greg", city="Portland", type_of_home="condo")
+    create_owner(client, name="david", city="Seattle", type_of_home="farm")
+    owner_ids = get_owner_ids()
+
+    response = client.post(
+        "/create",
+        data={
+            "name": "walter",
+            "age": "2",
+            "type": "mouse",
+            "owner_id": owner_ids["greg"],
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/list")
+
+    response = client.get("/list")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "walter" in body
+    assert owner_ids["greg"] in body
+
+    pet_id = extract_first_pet_id(body)
+
+    response = client.get(f"/update/{pet_id}")
+    assert response.status_code == 200
+    assert "walter" in response.get_data(as_text=True)
+
+    response = client.post(
+        f"/update/{pet_id}",
+        data={
+            "name": "updated",
+            "age": "8",
+            "type": "dog",
+            "owner_id": owner_ids["david"],
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/list")
+
+    updated_pet = database.get_pet(pet_id)
+    assert updated_pet is not None
+    assert updated_pet["name"] == "updated"
+    assert updated_pet["age"] == 8
+    assert updated_pet["type"] == "dog"
+    assert updated_pet["owner_id"] == owner_ids["david"]
+
+    response = client.get(f"/delete/{pet_id}", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/list")
+    assert database.get_pet(pet_id) is None
+
+
+def test_pet_create_rejects_unknown_owner(client):
+    response = client.post(
+        "/create",
+        data={
+            "name": "ghost",
+            "age": "1",
+            "type": "cat",
+            "owner_id": "000000000000000000000000",
+        },
+    )
+    assert response.status_code == 400
+    assert "owner_id" in response.get_data(as_text=True)
+
+
+def test_owner_delete_is_restricted_by_pets(client):
+    create_owner(client, name="greg", city="Portland", type_of_home="condo")
+    owner_id = get_owner_ids()["greg"]
+
+    client.post(
+        "/create",
+        data={
+            "name": "dorothy",
+            "age": "9",
+            "type": "dog",
+            "owner_id": owner_id,
+        },
+    )
+
+    response = client.get(f"/owner/delete/{owner_id}")
+    assert response.status_code == 400
+    assert "have pets" in response.get_data(as_text=True)
+
+    pet = database.get_pets()[0]
+    client.get(f"/delete/{pet['id']}")
+
+    response = client.get(f"/owner/delete/{owner_id}", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/owners")
+    assert database.get_owner(owner_id) is None
+
+
+def test_create_and_update_owner_validation(client):
+    response = client.post("/owner/create", data={"name": "", "city": "x", "type_of_home": "y"})
+    assert response.status_code == 400
+    assert "name is required" in response.get_data(as_text=True)
+
+    create_owner(client, name="greg", city="Portland", type_of_home="condo")
+    owner_id = get_owner_ids()["greg"]
+
+    response = client.post(
+        f"/owner/update/{owner_id}",
+        data={"name": "", "city": "x", "type_of_home": "y"},
+    )
+    assert response.status_code == 400
+    assert "name is required" in response.get_data(as_text=True)
+
+
+def test_stored_identifiers_are_object_ids(client):
+    from bson.objectid import ObjectId
+    owner_id = database.create_owner({"name": "Alex"})
+    pet_id = database.create_pet({
+        "name": "Casey", "type": "dog", "age": "3", "owner_id": owner_id,
+    })
+    stored = database.pets_collection.find_one({"_id": ObjectId(pet_id)})
+    assert isinstance(pet_id, str) and len(pet_id) == 24
+    assert stored["owner_id"] == ObjectId(owner_id)
+    assert isinstance(stored["_id"], ObjectId)
+
+
+def test_id_routes_reject_bad_and_missing_ids(client):
+    assert client.get("/update/not-an-id").status_code == 400
+    assert client.get("/update/000000000000000000000000").status_code == 404
+
+
+@pytest.mark.parametrize("age", ["-5", "abc"])
+def test_invalid_pet_age_create_and_update(client, age):
+    create_owner(client)
+    owner_id = get_owner_ids()["greg"]
+    data = {"name": "Casey", "type": "dog", "age": age, "owner_id": owner_id}
+    response = client.post("/create", data=data)
+    assert response.status_code == 400
+    assert database.get_pets() == []
+    pet_id = database.create_pet(dict(data, age="3"))
+    response = client.post(f"/update/{pet_id}", data=data)
+    assert response.status_code == 400
+    assert database.get_pet(pet_id)["age"] == 3
+
+
+@pytest.mark.parametrize("age", [None, "", "  ", "0", "3"])
+def test_valid_pet_age_defaults_and_conversion(client, age):
+    create_owner(client)
+    owner_id = get_owner_ids()["greg"]
+    pet_id = database.create_pet({"name": "Casey", "type": "dog", "age": age, "owner_id": owner_id})
+    assert database.get_pet(pet_id)["age"] == (3 if age == "3" else 0)
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-14-mongo-indexes/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

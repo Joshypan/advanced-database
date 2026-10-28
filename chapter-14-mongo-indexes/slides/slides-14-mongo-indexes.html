@@ -1,0 +1,344 @@
+<!doctype html>
+    <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chapter 14: Indexes in MongoDB Atlas</title>
+    <link rel="stylesheet" href="slide-assets/reveal.css">
+    <link rel="stylesheet" href="slide-assets/slides.css">
+    </head><body><div class="reveal"><div class="slides"><section><h1 id="indexes-in-mongodb-atlas">Indexes in MongoDB Atlas</h1>
+<p>The Pets application with faster lookups</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+</section>
+<section><h2 id="the-problem">The Problem</h2>
+<table>
+<thead>
+<tr>
+<th>Collection size</th>
+<th>Lookup with no index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4 pets</td>
+<td>Instant</td>
+</tr>
+<tr>
+<td>50,000 pets</td>
+<td>Reads every document</td>
+</tr>
+<tr>
+<td>5,000,000 pets</td>
+<td>Slow, and getting slower</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The work grows with the data.</strong></p>
+</section>
+<section><h2 id="what-an-index-is">What an Index Is</h2>
+<table>
+<thead>
+<tr>
+<th>Without an index</th>
+<th>With an index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Examine every document</td>
+<td>Look up the value in sorted order</td>
+</tr>
+<tr>
+<td>Collection scan</td>
+<td>Index scan</td>
+</tr>
+<tr>
+<td>Work grows with collection size</td>
+<td>Work grows much more slowly</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Like the index at the back of a book.</strong></p>
+</section>
+<section><h2 id="which-pets-queries-need-help">Which Pets Queries Need Help</h2>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>Filters on</th>
+<th>Indexed?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Get, update, delete by identifier</td>
+<td>_id</td>
+<td>Yes, automatic</td>
+</tr>
+<tr>
+<td>List all pets or owners</td>
+<td>Nothing</td>
+<td>An index cannot help</td>
+</tr>
+<tr>
+<td>Does this owner still have pets?</td>
+<td>owner_id</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The last row is the one we fix.</strong></p>
+</section>
+<section><h2 id="install-the-mongodb-shell">Install the MongoDB Shell</h2>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td><code>brew install mongosh</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>winget install MongoDB.Shell</code></td>
+</tr>
+<tr>
+<td>Linux or Codespace</td>
+<td>Follow the official page</td>
+</tr>
+<tr>
+<td>Node.js installed</td>
+<td><code>npx mongosh</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Current as of writing. Check the official page.</strong></p>
+</section>
+<section><h2 id="connect-to-atlas">Connect to Atlas</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">MONGODB_URI</span><span class="op">=</span><span class="st">&#39;mongodb+srv://USER:PASSWORD@YOUR-CLUSTER.mongodb.net/&#39;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">mongosh</span> <span class="st">&quot;</span><span class="va">$MONGODB_URI</span><span class="st">&quot;</span> <span class="at">--apiVersion</span> 1</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>use pets</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>show collections</span></code></pre></div>
+</section>
+<section><h2 id="make-enough-data">Make Enough Data</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> ownerId <span class="op">=</span> db<span class="op">.</span><span class="at">owners</span><span class="op">.</span><span class="fu">insertOne</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  {<span class="dt">name</span><span class="op">:</span> <span class="st">&quot;Bulk Owner&quot;</span><span class="op">,</span> <span class="dt">city</span><span class="op">:</span> <span class="st">&quot;Kent&quot;</span>})<span class="op">.</span><span class="at">insertedId</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> types <span class="op">=</span> [<span class="st">&quot;dog&quot;</span><span class="op">,</span> <span class="st">&quot;cat&quot;</span><span class="op">,</span> <span class="st">&quot;mouse&quot;</span><span class="op">,</span> <span class="st">&quot;fish&quot;</span><span class="op">,</span> <span class="st">&quot;bird&quot;</span>]</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> docs <span class="op">=</span> []</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">let</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> <span class="dv">50000</span><span class="op">;</span> i<span class="op">++</span>) {</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  docs<span class="op">.</span><span class="fu">push</span>({<span class="dt">name</span><span class="op">:</span> <span class="st">&quot;pet&quot;</span> <span class="op">+</span> i<span class="op">,</span> <span class="dt">type</span><span class="op">:</span> types[i <span class="op">%</span> <span class="dv">5</span>]<span class="op">,</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>             <span class="dt">age</span><span class="op">:</span> i <span class="op">%</span> <span class="dv">20</span><span class="op">,</span> <span class="dt">owner_id</span><span class="op">:</span> ownerId})</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="at">pets</span><span class="op">.</span><span class="fu">insertMany</span>(docs)</span></code></pre></div>
+<p><strong>Indexes pay off on large collections.</strong></p>
+</section>
+<section><h2 id="reading-a-query-plan">Reading a Query Plan</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> lonelyId <span class="op">=</span> db<span class="op">.</span><span class="at">owners</span><span class="op">.</span><span class="fu">insertOne</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  {<span class="dt">name</span><span class="op">:</span> <span class="st">&quot;No Pets&quot;</span><span class="op">,</span> <span class="dt">city</span><span class="op">:</span> <span class="st">&quot;Kent&quot;</span>})<span class="op">.</span><span class="at">insertedId</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="at">pets</span><span class="op">.</span><span class="fu">find</span>({<span class="dt">owner_id</span><span class="op">:</span> lonelyId})</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">explain</span>(<span class="st">&quot;executionStats&quot;</span>)</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Look for</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>COLLSCAN</td>
+<td>Whole collection read</td>
+</tr>
+<tr>
+<td>IXSCAN</td>
+<td>Index used</td>
+</tr>
+<tr>
+<td>totalDocsExamined</td>
+<td>Documents read</td>
+</tr>
+<tr>
+<td>nReturned</td>
+<td>Documents returned</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="before-the-index">Before the Index</h2>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th>Expected value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage</td>
+<td>COLLSCAN</td>
+</tr>
+<tr>
+<td>Documents examined</td>
+<td>Whole collection</td>
+</tr>
+<tr>
+<td>Documents returned</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Read everything to find nothing.</strong></p>
+</section>
+<section><h2 id="create-an-index">Create an Index</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="at">pets</span><span class="op">.</span><span class="fu">createIndex</span>({<span class="dt">owner_id</span><span class="op">:</span> <span class="dv">1</span>}<span class="op">,</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                    {<span class="dt">name</span><span class="op">:</span> <span class="st">&quot;pets_owner_id&quot;</span>})</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="at">pets</span><span class="op">.</span><span class="fu">getIndexes</span>()</span></code></pre></div>
+<p><strong>Safe to repeat. An identical index is not created
+twice.</strong></p>
+</section>
+<section><h2 id="after-the-index">After the Index</h2>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th>Expected value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage</td>
+<td>IXSCAN</td>
+</tr>
+<tr>
+<td>Documents examined</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Documents returned</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Looked up the value. Read no pets.</strong></p>
+</section>
+<section><h2 id="selectivity">Selectivity</h2>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>Matches</th>
+<th>Index helps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A specific pet name</td>
+<td>About 1 in 50,000</td>
+<td>A great deal</td>
+</tr>
+<tr>
+<td>type is dog</td>
+<td>About 1 in 5</td>
+<td>Much less</td>
+</tr>
+</tbody>
+</table>
+<p><strong>How much an index helps depends on how few documents the
+query matches.</strong></p>
+</section>
+<section><h2 id="compound-indexes">Compound Indexes</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="at">pets</span><span class="op">.</span><span class="fu">createIndex</span>({<span class="dt">owner_id</span><span class="op">:</span> <span class="dv">1</span><span class="op">,</span> <span class="dt">type</span><span class="op">:</span> <span class="dv">1</span>}<span class="op">,</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                    {<span class="dt">name</span><span class="op">:</span> <span class="st">&quot;pets_owner_id_type&quot;</span>})</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Query on</th>
+<th>Served by this index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>owner_id and type</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>owner_id alone</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>type alone</td>
+<td>Not efficiently</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="unique-indexes">Unique Indexes</h2>
+<p>A unique index rejects a second document with the same value in the
+indexed field.</p>
+<p><strong>Pets and owners can share names, so we do not use one
+here.</strong></p>
+</section>
+<section><h2 id="what-indexes-cost">What Indexes Cost</h2>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Effect of an added index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Read on the indexed field</td>
+<td>Faster</td>
+</tr>
+<tr>
+<td>Read on another field</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>Insert, update, delete</td>
+<td>Slower</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>More used</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Index what your queries actually use.</strong></p>
+</section>
+<section><h2 id="indexes-at-startup">Indexes at Startup</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>INDEXES <span class="op">=</span> [</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;pets&quot;</span>, <span class="st">&quot;owner_id&quot;</span>, <span class="st">&quot;pets_owner_id&quot;</span>, {}),</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;pets&quot;</span>, <span class="st">&quot;name&quot;</span>, <span class="st">&quot;pets_name&quot;</span>, {}),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;pets&quot;</span>, <span class="st">&quot;type&quot;</span>, <span class="st">&quot;pets_type&quot;</span>, {}),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;owners&quot;</span>, <span class="st">&quot;name&quot;</span>, <span class="st">&quot;owners_name&quot;</span>, {}),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div>
+<p><strong>setup_database() calls ensure_indexes().</strong></p>
+</section>
+<section><h2 id="plans-from-python">Plans from Python</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> explain-queries.py</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> collection.find(query).explain()</span></code></pre></div>
+<p><strong>Prints the stage, documents examined, and documents
+returned.</strong></p>
+</section>
+<section><h2 id="takeaways">Takeaways</h2>
+<p>Index the fields your queries filter and sort on.</p>
+<p>Use explain to confirm the index is used.</p>
+<p>Selectivity decides how much an index helps.</p>
+<p>Every index costs storage and write time.</p>
+</section></div></div>
+    <script src="slide-assets/reveal.js"></script>
+    <script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+    </body></html>

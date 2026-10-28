@@ -1,0 +1,141 @@
+<!doctype html>
+    <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chapter 14: Indexes in MongoDB Atlas</title>
+    <link rel="stylesheet" href="slide-assets/reveal.css">
+    <link rel="stylesheet" href="slide-assets/slides.css">
+    </head><body><div class="reveal"><div class="slides"><section><h1 id="imdb-indexing-exercise">IMDb Indexing Exercise</h1>
+<p>Indexes on real title data</p>
+<hr>
+<p>Gregory S. DeLozier, PhD</p>
+<p><strong>Real titles. Your own measurements.</strong></p>
+</section>
+<section><h2 id="reuse-the-chapter-9-files">Reuse the Chapter 9 Files</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Option</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reuse</td>
+<td>Copy <code>title.basics.tsv.gz</code> and
+<code>title.ratings.tsv.gz</code> from the Chapter 9 <code>data</code>
+folder</td>
+</tr>
+<tr>
+<td>Download again</td>
+<td><code>curl</code> both files from
+<code>datasets.imdbws.com</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Keep them compressed. Keep them out of git.</strong></p>
+</section>
+<section><h2 id="check-your-storage-first">Check Your Storage First</h2>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Documents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>titles</td>
+<td>About 12.8 million</td>
+</tr>
+<tr>
+<td>ratings</td>
+<td>About 1.7 million</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The Free tier is small. Load a subset if it will not
+fit.</strong></p>
+</section>
+<section><h2 id="load-first-index-afterward">Load First, Index Afterward</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> import-imdb-mongo.py <span class="at">--limit</span> 100000</span></code></pre></div>
+<p><strong>Batches of 10,000. The IMDb id becomes
+<code>_id</code>.</strong></p>
+</section>
+<section><h2 id="three-experiments">Three Experiments</h2>
+<table>
+<thead>
+<tr>
+<th>Experiment</th>
+<th>Index it builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One title by name</td>
+<td><code>primary_title</code></td>
+</tr>
+<tr>
+<td>Movies from 1994</td>
+<td><code>title_type</code>, <code>start_year</code></td>
+</tr>
+<tr>
+<td>Top ten by votes</td>
+<td><code>num_votes</code>, descending</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> explore-imdb-indexes.py</span></code></pre></div>
+</section>
+<section><h2 id="you-take-the-timings">You Take the Timings</h2>
+<table>
+<thead>
+<tr>
+<th>Experiment</th>
+<th>Plan</th>
+<th>Examined</th>
+<th>Time</th>
+<th>Build time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>After</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fill it in for each experiment.</strong></p>
+</section>
+<section><h2 id="go-further">Go Further</h2>
+<p>Compound index: which field first?</p>
+<p><code>start_year</code> alone with a compound index in place.</p>
+<p><code>/^The Godfather/</code> against <code>/Godfather/</code>.</p>
+<p>Top ten with and without <code>limit</code>.</p>
+<p><strong>Same questions as Chapter 9. Compare the
+answers.</strong></p>
+</section>
+<section><h2 id="clean-up">Clean Up</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>use imdb</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>db<span class="op">.</span><span class="fu">dropDatabase</span>()</span></code></pre></div>
+<p><strong>The files stay on your computer. Reload any
+time.</strong></p>
+</section></div></div>
+    <script src="slide-assets/reveal.js"></script>
+    <script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+    </body></html>

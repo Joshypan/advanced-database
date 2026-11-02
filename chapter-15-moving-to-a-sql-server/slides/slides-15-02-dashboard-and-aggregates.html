@@ -123,12 +123,61 @@ class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#c
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- Keep groups after aggregation.</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">HAVING</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="dv">5</span></span></code></pre></div>
 <p><strong>A group threshold belongs after GROUP BY.</strong></p>
-</section><section><h2 id="exercise-a-runtime-control">Exercise: A Runtime Control</h2>
+</section><section><h2 id="worked-example-movie-length">Worked Example: Movie Length</h2>
 <p>Files: <code>database.py</code>, <code>app_basics.py</code></p>
-<p>Add a minimum runtime to <code>yearly_summary</code>.</p>
-<p>Pass it from a Streamlit number input and include it in the cache
-key.</p>
-<p><strong>Expected: short movies leave the yearly totals.</strong></p>
+<p><strong>Compare yearly counts and average ratings after excluding
+shorter movies.</strong></p>
+<p>Number input -&gt; cached function -&gt; SQL filter -&gt; yearly
+report</p>
+<p>The stored data stays unchanged.</p>
+</section><section><h2 id="add-the-sql-filter">1. Add the SQL Filter</h2>
+<p>In <code>database.py</code>, extend <code>yearly_summary</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> yearly_summary(minimum_votes<span class="op">=</span><span class="dv">1000</span>, minimum_movie_length<span class="op">=</span><span class="dv">0</span>):</span></code></pre></div>
+<p>Add this condition before <code>GROUP BY</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">AND</span> t.runtime_minutes <span class="op">&gt;=</span> %s</span></code></pre></div>
+<p>Replace the parameter tuple:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(minimum_votes, minimum_movie_length)</span></code></pre></div>
+</section><section><h2 id="add-the-input">2. Add the Input</h2>
+<p>In <code>app_basics.py</code>, below the minimum-votes input:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>minimum_movie_length <span class="op">=</span> st.sidebar.number_input(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&#39;Minimum movie length (minutes)&#39;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    min_value<span class="op">=</span><span class="dv">0</span>, value<span class="op">=</span><span class="dv">0</span>, step<span class="op">=</span><span class="dv">10</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>The selected number is a movie length in
+minutes.</strong></p>
+</section><section><h2 id="connect-the-input-to-the-query">3. Connect the Input to the
+Query</h2>
+<p>Replace the cached function in <code>app_basics.py</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@st.cache_data</span>(ttl<span class="op">=</span><span class="dv">60</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> summary(votes, minimum_movie_length):</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> database.yearly_summary(votes, minimum_movie_length)</span></code></pre></div>
+<p>Inside <code>with second:</code>, replace the call:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> summary(votes, minimum_movie_length)</span></code></pre></div>
+</section><section><h2 id="compare-the-results">4. Compare the Results</h2>
+<p>Save both files; run or reload the starter:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">streamlit</span> run app_basics.py <span class="at">--server.address</span> 0.0.0.0</span></code></pre></div>
+<p>Open <strong>By year</strong>. Keep votes fixed; try <strong>0, 90,
+120 minutes</strong>.</p>
+<ul>
+<li>Counts can decrease; empty years disappear.</li>
+<li>Average ratings can rise or fall.</li>
+<li>Return to 90: the earlier results should return.</li>
+</ul>
+</section><section><h2 id="your-turn-maximum-movie-length">Your Turn: Maximum Movie
+Length</h2>
+<p>Files: <code>database.py</code>, <code>app_basics.py</code></p>
+<p>Add a <strong>Maximum movie length (minutes)</strong> input,
+initially <strong>300</strong>.</p>
+<p>Pass it through the cache and apply an inclusive SQL upper bound.</p>
+<p>Reject a maximum below the minimum before querying.</p>
+<p><strong>Check 90-120, 90-180, and 120-120 minutes.</strong></p>
 </section><section><h2 id="the-working-boundary">The Working Boundary</h2>
 <p>SQL determines which rows and summaries mean something.</p>
 <p>The data layer returns them.</p>

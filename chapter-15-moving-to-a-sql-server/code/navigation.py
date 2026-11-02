@@ -28,4 +28,4 @@ def show_movies(rows):
         st.info('No matching movies with the current filters.')
         return
     columns=[c for c in ['primary_title','movie_notes','start_year','average_rating','num_votes','runtime_minutes','genres'] if c=='movie_notes' or (rows and c in rows[0])]
-    st.dataframe(linked_movies(rows),hide_index=True,column_order=columns,column_config={'primary_title':st.column_config.TextColumn('Movie'),'movie_notes':st.column_config.LinkColumn('Notes',display_text=':material/note_alt:',help='Open movie notes'),'title_id':None,'_id':None,'start_year':'Year','average_rating':'Rating','num_votes':'Votes','runtime_minutes':'Runtime','genres':'Genres','year_rank':'Rank'})
+    st.dataframe(linked_movies(rows),hide_index=True,column_order=columns,column_config={'primary_title':st.column_config.TextColumn('Movie'),'movie_notes':st.column_config.LinkColumn('Notes',display_text=':material/note_alt:',help='Open movie notes'),'title_id':None,'_id':None,'start_year':'Year','average_rating':'Rating','num_votes':'Votes','runtime_minutes':'Movie length (minutes)','genres':'Genres','year_rank':'Rank'})

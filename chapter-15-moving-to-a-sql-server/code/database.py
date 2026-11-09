@@ -17,14 +17,18 @@ def search_titles(text, minimum_votes=1000):
         ORDER BY r.num_votes DESC, t.title_id LIMIT 100
     """, ('%'+text.strip()+'%', minimum_votes))
 
-def yearly_summary(minimum_votes=1000):
+def yearly_summary(minimum_votes=1000, minimum_movie_length=0, maximum_movie_length=300):
     return query("""
         SELECT t.start_year, count(*) AS movies,
                round(avg(r.average_rating), 2) AS mean_rating
         FROM imdb_course.titles t JOIN imdb_course.ratings r USING (title_id)
         WHERE t.start_year IS NOT NULL AND r.num_votes >= %s
+        AND (%s = 0 OR t.runtime_minutes >= %s)
+        AND (%s = 0 OR t.runtime_minutes <= %s)
         GROUP BY t.start_year ORDER BY t.start_year
-    """, (minimum_votes,))
+    """, (minimum_votes,
+          minimum_movie_length, minimum_movie_length,
+          maximum_movie_length, maximum_movie_length))
 
 def ranked_movies(minimum_votes=1000):
     return query("""

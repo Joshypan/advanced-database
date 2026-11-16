@@ -1,0 +1,164 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 16: 02 Accounts And Recovery</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="accounts-and-recovery">Accounts and Recovery</h1>
+<p>Chapter 16 · Lecture 2</p>
+<p>Identity, permissions, and a checked restore</p>
+</section>
+<section><h2 id="resume-the-local-server">Resume the Local Server</h2>
+<pre class="bash"><code>source .venv/bin/activate
+python server.py start
+python server.py status</code></pre>
+</section>
+<section><h2 id="three-accounts">Three Accounts</h2>
+<table>
+<thead>
+<tr>
+<th>User</th>
+<th>Role</th>
+<th>Authentication DB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>siteAdmin</td>
+<td>root</td>
+<td>admin</td>
+</tr>
+<tr>
+<td>petsApp</td>
+<td>readWrite</td>
+<td>pets_demo</td>
+</tr>
+<tr>
+<td>petsReader</td>
+<td>read</td>
+<td>pets_demo</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="first-user-bootstrap">First-User Bootstrap</h2>
+<pre class="bash"><code>python accounts.py</code></pre>
+<p>Prompts collect the three passwords</p>
+</section>
+<section><h2 id="the-localhost-exception">The Localhost Exception</h2>
+<pre class="python"><code>local.admin.command(
+    &quot;createUser&quot;, &quot;siteAdmin&quot;, pwd=admin_secret,
+    roles=[{&quot;role&quot;: &quot;root&quot;, &quot;db&quot;: &quot;admin&quot;}],
+)</code></pre>
+</section>
+<section><h2 id="identity-and-data-selection">Identity and Data Selection</h2>
+<pre class="python"><code>client = MongoClient(
+    &quot;127.0.0.1&quot;, 27117,
+    username=&quot;petsApp&quot;, password=app_secret,
+    authSource=&quot;pets_demo&quot;, directConnection=True,
+)
+pets = client.pets_demo.pets</code></pre>
+</section>
+<section><h2 id="the-interactive-shell">The Interactive Shell</h2>
+<pre class="bash"><code>mongosh --host 127.0.0.1 --port 27117 \
+  --username petsApp \
+  --authenticationDatabase pets_demo</code></pre>
+<p>The shell prompts for the password</p>
+</section>
+<section><h2 id="permission-evidence">Permission Evidence</h2>
+<pre class="bash"><code>python demo.py</code></pre>
+<p>Successful data access and denied administration</p>
+</section>
+<section><h2 id="allowed-and-denied-operations">Allowed and Denied
+Operations</h2>
+<table>
+<thead>
+<tr>
+<th>Account</th>
+<th>Read pets</th>
+<th>Write pets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>petsApp</td>
+<td>Allowed</td>
+<td>Allowed</td>
+</tr>
+<tr>
+<td>petsReader</td>
+<td>Allowed</td>
+<td>Denied</td>
+</tr>
+<tr>
+<td>Anonymous</td>
+<td>Denied</td>
+<td>Denied</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="saved-records-survive-restart">Saved Records Survive
+Restart</h2>
+<p>Edit a sample pet</p>
+<p>Stop and restart the server</p>
+<p>Read the edited document again</p>
+</section>
+<section><h2 id="small-logical-backup">Small Logical Backup</h2>
+<pre class="bash"><code>bash backup.sh</code></pre>
+<p>Stop application writes for this exercise</p>
+</section>
+<section><h2 id="restore-to-a-separate-database">Restore to a Separate
+Database</h2>
+<pre class="bash"><code>bash restore.sh data/backups/&lt;archive&gt;.archive.gz</code></pre>
+<p>Source: pets_demo</p>
+<p>Destination: pets_restore</p>
+</section>
+<section><h2 id="restore-evidence">Restore Evidence</h2>
+<p>Compare counts</p>
+<p>Inspect an edited document</p>
+<p>Inspect restored indexes</p>
+</section>
+<section><h2 id="connection-controls">Connection Controls</h2>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication</td>
+<td>Identity</td>
+</tr>
+<tr>
+<td>Authorization</td>
+<td>Permitted actions</td>
+</tr>
+<tr>
+<td>Binding</td>
+<td>Listening interfaces</td>
+</tr>
+<tr>
+<td>TLS</td>
+<td>Transport encryption</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="lab-operate-and-recover">Lab: Operate and Recover</h2>
+<ol type="1">
+<li>Demonstrate one allowed and one denied operation</li>
+<li>Edit a pet and verify it after restart</li>
+<li>Back up and restore to pets_restore</li>
+<li>Submit evidence without passwords</li>
+</ol>
+</section>
+<section><h2 id="next-more-than-one-process">Next: More Than One Process</h2>
+<p>How does an application find a new primary?</p>
+<p>What if the entire Codespace stops?</p>
+<p>How do we distribute a dataset?</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>

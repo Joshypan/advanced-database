@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: MongoDB in a GitHub Codespace</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>MongoDB in a GitHub Codespace: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6163636f756e74732e7079">accounts.py</a></li>
+<li><a href="#file-6261636b75702e7368">backup.sh</a></li>
+<li><a href="#file-64656d6f2e7079">demo.py</a></li>
+<li><a href="#file-696d64625f717565726965732e7079">imdb_queries.py</a></li>
+<li><a href="#file-696d64625f7365617263682e7079">imdb_search.py</a></li>
+<li><a href="#file-696e7374616c6c2e7368">install.sh</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-726573746f72652e7368">restore.sh</a></li>
+<li><a href="#file-7365727665722e7079">server.py</a></li>
+<li><a href="#file-746573745f68656c706572732e7079">test_helpers.py</a></li>
+<li><a href="#file-746573745f696d64625f717565726965732e7079">test_imdb_queries.py</a></li>
+<li><a href="#file-746573745f6c6976652e7079">test_live.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6163636f756e74732e7079" aria-labelledby="title-file-6163636f756e74732e7079"><header class="file-header"><h2 id="title-file-6163636f756e74732e7079">accounts.py</h2></header><pre><code>"""Bootstrap through the localhost exception, then provision scoped users."""
+import getpass
+import os
+from pymongo import MongoClient
+from pymongo.errors import OperationFailure
+from server import PORT
+
+
+def password(env, prompt):
+    value = os.environ.get(env) or getpass.getpass(prompt)
+    if not value:
+        raise ValueError('A nonempty password is required.')
+    return value
+
+
+def connect(user, secret, auth_db):
+    # Separate arguments avoid URI password-encoding mistakes.
+    return MongoClient('127.0.0.1', PORT, username=user, password=secret,
+                       authSource=auth_db, directConnection=True,
+                       serverSelectionTimeoutMS=5000)
+
+
+def bootstrap(admin_secret, app_secret, reader_secret):
+    with MongoClient('127.0.0.1', PORT, directConnection=True,
+                     serverSelectionTimeoutMS=5000) as local:
+        try:
+            local.admin.command('createUser', 'siteAdmin', pwd=admin_secret,
+                                roles=[{'role': 'root', 'db': 'admin'}])
+            print('Created the first administrator through the localhost exception.')
+        except OperationFailure as error:
+            # On a repeat run, the existing admin must authenticate below.
+            if error.code not in (13, 51003):
+                raise
+    with connect('siteAdmin', admin_secret, 'admin') as admin:
+        admin.admin.command('connectionStatus')
+        for name, secret, role in [('petsApp', app_secret, 'readWrite'),
+                                   ('petsReader', reader_secret, 'read')]:
+            found = admin.pets_demo.command('usersInfo', name)['users']
+            if not found:
+                admin.pets_demo.command('createUser', name, pwd=secret,
+                                        roles=[{'role': role, 'db': 'pets_demo'}])
+                print('Created', name)
+            else:
+                print('Kept existing', name, '(password unchanged)')
+    # Verify provided credentials, including on repeated setup.
+    for user, secret in [('petsApp', app_secret), ('petsReader', reader_secret)]:
+        with connect(user, secret, 'pets_demo') as client:
+            client.pets_demo.pets.find_one()
+
+
+if __name__ == '__main__':
+    bootstrap(password('MONGO_ADMIN_PASSWORD', 'Administrator password: '),
+              password('MONGO_APP_PASSWORD', 'Application password: '),
+              password('MONGO_READER_PASSWORD', 'Report reader password: '))
+    print('Accounts verified. No passwords were written to disk.')
+</code></pre></section>
+<section class="source-file" id="file-6261636b75702e7368" aria-labelledby="title-file-6261636b75702e7368" hidden><header class="file-header"><h2 id="title-file-6261636b75702e7368">backup.sh</h2></header><pre><code>#!/usr/bin/env bash
+# Stop application writes before this small standalone logical backup.
+set -euo pipefail
+cd "$(dirname "$0")"
+mkdir -p data/backups
+chmod 700 data/backups
+archive="data/backups/pets-$(date -u +%Y%m%dT%H%M%SZ)-$$.archive.gz"
+# With a username and no password argument, mongodump prompts interactively.
+mongodump --host 127.0.0.1 --port "${MONGO16_PORT:-27117}" \
+    --username siteAdmin --authenticationDatabase admin --db pets_demo \
+    --archive="$archive" --gzip
+printf 'Backup: %s\n' "$archive"
+</code></pre></section>
+<section class="source-file" id="file-64656d6f2e7079" aria-labelledby="title-file-64656d6f2e7079" hidden><header class="file-header"><h2 id="title-file-64656d6f2e7079">demo.py</h2></header><pre><code>"""Prove permitted data access and denied server administration."""
+from pymongo import MongoClient
+from pymongo.errors import OperationFailure
+from accounts import connect, password
+from server import PORT
+
+
+def expect_denied(operation):
+    try:
+        operation()
+    except OperationFailure as error:
+        if error.code != 13:
+            raise
+        return
+    raise AssertionError('Expected Unauthorized (code 13).')
+
+
+def demonstrate(app_secret, reader_secret):
+    with connect('petsApp', app_secret, 'pets_demo') as client:
+        pets = client.pets_demo.pets
+        for item in [{'_id': 'mochi', 'name': 'Mochi', 'species': 'cat', 'age': 3},
+                     {'_id': 'biscuit', 'name': 'Biscuit', 'species': 'dog', 'age': 5},
+                     {'_id': 'dot', 'name': 'Dot', 'species': 'rabbit', 'age': 2}]:
+            pets.update_one({'_id': item['_id']}, {'$setOnInsert': item}, upsert=True)
+        assert pets.count_documents({'_id': {'$in': ['mochi','biscuit','dot']}}) == 3
+        expect_denied(lambda: client.admin.command('usersInfo', 1))
+        print('Application: demo records readable; server-user administration denied.')
+    with connect('petsReader', reader_secret, 'pets_demo') as reader:
+        assert reader.pets_demo.pets.find_one({'_id': 'mochi'})
+        expect_denied(lambda: reader.pets_demo.pets.update_one(
+            {'_id': 'mochi'}, {'$set': {'age': 99}}))
+        print('Reader: query allowed; update denied.')
+    with MongoClient('127.0.0.1', PORT, directConnection=True,
+                     serverSelectionTimeoutMS=5000) as anonymous:
+        expect_denied(lambda: anonymous.pets_demo.pets.find_one())
+        print('Anonymous: data query denied. A successful ping alone proves no data access.')
+
+
+if __name__ == '__main__':
+    demonstrate(password('MONGO_APP_PASSWORD', 'Application password: '),
+                password('MONGO_READER_PASSWORD', 'Report reader password: '))
+</code></pre></section>
+<section class="source-file" id="file-696d64625f717565726965732e7079" aria-labelledby="title-file-696d64625f717565726965732e7079" hidden><header class="file-header"><h2 id="title-file-696d64625f717565726965732e7079">imdb_queries.py</h2></header><pre><code>"""Query helpers for the IMDb search page.
+
+No Streamlit code lives here, so the functions can be tested on their own.
+Connection settings come from the MONGODB_URI environment variable.
+"""
+import os
+
+from pymongo import ASCENDING, MongoClient
+
+TITLE_INDEX = "idx_titles_primary_title"
+
+
+def connect(database_name="imdb"):
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        raise RuntimeError("Set MONGODB_URI before starting the page.")
+    client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+    client.admin.command("ping")
+    return client, client[database_name]
+
+
+def build_filter(title="", title_type="", year=None):
+    """Turn the search form into a MongoDB filter. Empty fields are ignored."""
+    query = {}
+    if title.strip():
+        query["primary_title"] = title.strip()
+    if title_type:
+        query["title_type"] = title_type
+    if year:
+        query["start_year"] = int(year)
+    return query
+
+
+def stage_names(plan):
+    """List the stage names in a winning plan, from the top down."""
+    plan = plan.get("queryPlan", plan)
+    names = []
+    while plan:
+        names.append(plan["stage"])
+        plan = plan.get("inputStage")
+    return names
+
+
+def explain_summary(report):
+    """Reduce an explain('executionStats') report to the numbers we talk about."""
+    stats = report["executionStats"]
+    return {
+        "plan": " &gt; ".join(stage_names(report["queryPlanner"]["winningPlan"])),
+        "keys_examined": stats["totalKeysExamined"],
+        "docs_examined": stats["totalDocsExamined"],
+        "returned": stats["nReturned"],
+        "millis": stats["executionTimeMillis"],
+    }
+
+
+def search(database, query, limit=20):
+    """Return (rows, work). Each row joins a title with its rating by _id."""
+    titles = database.titles
+    rows = list(titles.find(query).limit(limit))
+    work = explain_summary(titles.find(query).limit(limit).explain())
+    ratings = {
+        r["_id"]: r
+        for r in database.ratings.find({"_id": {"$in": [row["_id"] for row in rows]}})
+    }
+    for row in rows:
+        rating = ratings.get(row["_id"], {})
+        row["average_rating"] = rating.get("average_rating")
+        row["num_votes"] = rating.get("num_votes")
+    return rows, work
+
+
+def has_title_index(database):
+    return any(i["name"] == TITLE_INDEX for i in database.titles.list_indexes())
+
+
+def create_title_index(database):
+    database.titles.create_index([("primary_title", ASCENDING)], name=TITLE_INDEX)
+
+
+def drop_title_index(database):
+    if has_title_index(database):
+        database.titles.drop_index(TITLE_INDEX)
+</code></pre></section>
+<section class="source-file" id="file-696d64625f7365617263682e7079" aria-labelledby="title-file-696d64625f7365617263682e7079" hidden><header class="file-header"><h2 id="title-file-696d64625f7365617263682e7079">imdb_search.py</h2></header><pre><code>"""A small Streamlit page: search IMDb titles and show the work MongoDB did.
+
+Run from this folder with MONGODB_URI set:
+    streamlit run imdb_search.py
+"""
+import streamlit as st
+
+import imdb_queries as queries
+
+st.set_page_config(page_title="IMDb on MongoDB", layout="wide")
+st.title("IMDb on MongoDB")
+
+
+@st.cache_resource
+def database():
+    client, db = queries.connect()
+    return db
+
+
+try:
+    db = database()
+except Exception as error:
+    st.error(f"Cannot reach MongoDB: {error}")
+    st.stop()
+
+with st.sidebar:
+    st.header("Title index")
+    if queries.has_title_index(db):
+        st.write("The index on primary_title exists.")
+        if st.button("Drop the index"):
+            queries.drop_title_index(db)
+            st.rerun()
+    else:
+        st.write("No index on primary_title.")
+        if st.button("Create the index"):
+            with st.spinner("Building the index"):
+                queries.create_title_index(db)
+            st.rerun()
+
+with st.form("search"):
+    left, middle, right = st.columns(3)
+    title = left.text_input("Exact title", placeholder="The Godfather")
+    title_type = middle.selectbox("Type", ["", "movie", "short", "tvSeries", "tvEpisode"])
+    year = right.number_input("Year (0 for any)", min_value=0, max_value=2100, value=0)
+    submitted = st.form_submit_button("Search")
+
+if submitted:
+    query = queries.build_filter(title, title_type, year)
+    if not query:
+        st.info("Enter at least one condition.")
+    else:
+        rows, work = queries.search(db, query)
+        st.subheader("The work MongoDB did")
+        a, b, c, d = st.columns(4)
+        a.metric("Plan", work["plan"])
+        b.metric("Documents examined", f"{work['docs_examined']:,}")
+        c.metric("Returned", f"{work['returned']:,}")
+        d.metric("Server time (ms)", work["millis"])
+        st.subheader("Results (first 20)")
+        st.dataframe(
+            [
+                {
+                    "Title": r.get("primary_title"),
+                    "Type": r.get("title_type"),
+                    "Year": r.get("start_year"),
+                    "Rating": r.get("average_rating"),
+                    "Votes": r.get("num_votes"),
+                    "ID": r["_id"],
+                }
+                for r in rows
+            ],
+            hide_index=True,
+        )
+</code></pre></section>
+<section class="source-file" id="file-696e7374616c6c2e7368" aria-labelledby="title-file-696e7374616c6c2e7368" hidden><header class="file-header"><h2 id="title-file-696e7374616c6c2e7368">install.sh</h2></header><pre><code>#!/usr/bin/env bash
+# Install binaries only. The lab's Python controller starts its own server.
+set -euo pipefail
+. /etc/os-release
+if [[ "$ID" != ubuntu || ( "$VERSION_CODENAME" != jammy &amp;&amp; "$VERSION_CODENAME" != noble ) ]]; then
+    echo "This walkthrough supports Ubuntu 22.04/jammy or 24.04/noble." &gt;&amp;2
+    exit 1
+fi
+if [[ "$(dpkg --print-architecture)" != amd64 ]]; then
+    echo "This course installer targets amd64. Consult MongoDB's platform guide for other architectures." &gt;&amp;2
+    exit 1
+fi
+if [[ "$EUID" -eq 0 ]]; then SUDO=(); else SUDO=(sudo); fi
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" apt-get install -y curl gnupg
+curl -fsSL https://pgp.mongodb.com/server-8.0.asc | \
+    "${SUDO[@]}" gpg --batch --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
+printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] https://repo.mongodb.org/apt/ubuntu %s/mongodb-org/8.0 multiverse\n' "$VERSION_CODENAME" | \
+    "${SUDO[@]}" tee /etc/apt/sources.list.d/mongodb-org-8.0.list &gt;/dev/null
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" apt-get install -y mongodb-org-server mongodb-org-mongos mongodb-mongosh mongodb-database-tools
+mongod --version
+mongosh --version
+mongodump --version
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>pymongo==4.19.0
+streamlit&gt;=1.63,&lt;2
+</code></pre></section>
+<section class="source-file" id="file-726573746f72652e7368" aria-labelledby="title-file-726573746f72652e7368" hidden><header class="file-header"><h2 id="title-file-726573746f72652e7368">restore.sh</h2></header><pre><code>#!/usr/bin/env bash
+# Restore only into the separate pets_restore database. Never drop live data.
+set -euo pipefail
+cd "$(dirname "$0")"
+if [[ "$#" != 1 || ! -f "$1" ]]; then
+    echo 'Usage: bash restore.sh data/backups/&lt;archive&gt;.archive.gz' &gt;&amp;2
+    exit 1
+fi
+mongorestore --host 127.0.0.1 --port "${MONGO16_PORT:-27117}" \
+    --username siteAdmin --authenticationDatabase admin \
+    --archive="$1" --gzip --nsInclude='pets_demo.*' \
+    --nsFrom='pets_demo.*' --nsTo='pets_restore.*' --stopOnError
+</code></pre></section>
+<section class="source-file" id="file-7365727665722e7079" aria-labelledby="title-file-7365727665722e7079" hidden><header class="file-header"><h2 id="title-file-7365727665722e7079">server.py</h2></header><pre><code>"""Own only this lab's localhost MongoDB process. Never remove saved data."""
+import argparse
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import subprocess
+import time
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
+ROOT = Path(__file__).resolve().parent
+DATA = Path(os.environ.get('MONGO16_DATA', ROOT / 'data')).resolve()
+PORT = int(os.environ.get('MONGO16_PORT', '27117'))
+
+
+def owned_pid():
+    pidfile = DATA / 'mongod.pid'
+    if not pidfile.exists():
+        return None
+    pid = int(pidfile.read_text())
+    try:
+        if Path(f'/proc/{pid}/stat').read_text().split()[2] == 'Z':
+            return None
+        args = Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+    except FileNotFoundError:
+        return None
+    # Linux/Codespaces: guard against PID reuse and unrelated MongoDB servers.
+    if b'--dbpath' not in args or str(DATA / 'db').encode() not in args:
+        raise RuntimeError('PID file points to another process. Inspect it before proceeding.')
+    return pid
+
+
+def start():
+    if owned_pid():
+        print('This lab server is already running.')
+        return
+    binary = shutil.which('mongod')
+    if not binary:
+        raise RuntimeError('mongod is missing. Run bash install.sh first.')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', PORT))  # Refuse to reuse an occupied port.
+    (DATA / 'db').mkdir(parents=True, exist_ok=True, mode=0o700)
+    DATA.chmod(0o700)
+    args = [binary, '--dbpath', str(DATA / 'db'), '--port', str(PORT),
+            '--bind_ip', '127.0.0.1', '--auth', '--logpath', str(DATA / 'mongod.log'),
+            '--logappend', '--wiredTigerCacheSizeGB', '0.25']
+    process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL, start_new_session=True)
+    (DATA / 'mongod.pid').write_text(str(process.pid))
+    deadline = time.monotonic() + 30
+    while time.monotonic() &lt; deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f'mongod exited. Read {DATA / "mongod.log"}')
+        try:
+            with MongoClient('127.0.0.1', PORT, directConnection=True,
+                             serverSelectionTimeoutMS=500) as client:
+                client.admin.command('ping')
+            print(f'Listening on 127.0.0.1:{PORT} with authorization enabled.')
+            return
+        except PyMongoError:
+            time.sleep(0.2)
+    raise RuntimeError('Startup timeout. Inspect the log; use stop before retrying.')
+
+
+def stop():
+    pid = owned_pid()
+    if not pid:
+        print('This lab server is stopped.')
+        return
+    os.kill(pid, signal.SIGTERM)
+    deadline = time.monotonic() + 30
+    while time.monotonic() &lt; deadline:
+        try:
+            state = Path(f'/proc/{pid}/stat').read_text().split()[2]
+            if state == 'Z':
+                break
+        except FileNotFoundError:
+            break
+        time.sleep(0.2)
+    else:
+        raise RuntimeError('Shutdown is still pending. Inspect the log; do not remove data files.')
+    (DATA / 'mongod.pid').unlink(missing_ok=True)
+    print('Stopped this lab server; data kept.')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['start', 'stop', 'status'])
+    action = parser.parse_args().action
+    if action == 'start': start()
+    elif action == 'stop': stop()
+    else: print('Running' if owned_pid() else 'Stopped')
+</code></pre></section>
+<section class="source-file" id="file-746573745f68656c706572732e7079" aria-labelledby="title-file-746573745f68656c706572732e7079" hidden><header class="file-header"><h2 id="title-file-746573745f68656c706572732e7079">test_helpers.py</h2></header><pre><code>"""Offline error-semantics and process-ownership checks. No database emulation."""
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
+import demo
+import server
+
+
+class HelperTests(unittest.TestCase):
+    def test_permission_check_rejects_connectivity_failures(self):
+        def denied(): raise OperationFailure('not authorized',code=13)
+        demo.expect_denied(denied)
+        with self.assertRaises(AssertionError): demo.expect_denied(lambda: None)
+        def disconnected(): raise ServerSelectionTimeoutError('offline')
+        with self.assertRaises(ServerSelectionTimeoutError): demo.expect_denied(disconnected)
+
+    def test_stale_pid_cannot_signal_this_python_process(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)
+            (path/'mongod.pid').write_text(str(os.getpid()))
+            with patch.object(server,'DATA',path):
+                with patch.object(server.os, 'kill') as kill:
+                    try:
+                        server.stop()
+                    except RuntimeError:
+                        pass
+                    kill.assert_not_called()
+
+
+if __name__=='__main__': unittest.main()
+</code></pre></section>
+<section class="source-file" id="file-746573745f696d64625f717565726965732e7079" aria-labelledby="title-file-746573745f696d64625f717565726965732e7079" hidden><header class="file-header"><h2 id="title-file-746573745f696d64625f717565726965732e7079">test_imdb_queries.py</h2></header><pre><code>import unittest
+
+import imdb_queries as q
+
+
+class BuildFilterTests(unittest.TestCase):
+    def test_empty_form_gives_empty_filter(self):
+        self.assertEqual(q.build_filter(), {})
+        self.assertEqual(q.build_filter("  ", "", 0), {})
+
+    def test_fields_are_trimmed_and_year_is_a_number(self):
+        self.assertEqual(
+            q.build_filter(" The Godfather ", "movie", "1972"),
+            {"primary_title": "The Godfather", "title_type": "movie", "start_year": 1972},
+        )
+
+
+class ExplainSummaryTests(unittest.TestCase):
+    def report(self, plan, keys, docs, returned, millis):
+        return {
+            "queryPlanner": {"winningPlan": plan},
+            "executionStats": {
+                "totalKeysExamined": keys,
+                "totalDocsExamined": docs,
+                "nReturned": returned,
+                "executionTimeMillis": millis,
+            },
+        }
+
+    def test_collection_scan(self):
+        plan = {"stage": "LIMIT", "inputStage": {"stage": "COLLSCAN"}}
+        out = q.explain_summary(self.report(plan, 0, 900, 20, 41))
+        self.assertEqual(out["plan"], "LIMIT &gt; COLLSCAN")
+        self.assertEqual((out["docs_examined"], out["returned"], out["millis"]), (900, 20, 41))
+
+    def test_index_scan_and_slot_based_wrapper(self):
+        plan = {"queryPlan": {"stage": "FETCH", "inputStage": {"stage": "IXSCAN"}}}
+        out = q.explain_summary(self.report(plan, 47, 47, 47, 0))
+        self.assertEqual(out["plan"], "FETCH &gt; IXSCAN")
+        self.assertEqual(out["keys_examined"], 47)
+
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section>
+<section class="source-file" id="file-746573745f6c6976652e7079" aria-labelledby="title-file-746573745f6c6976652e7079" hidden><header class="file-header"><h2 id="title-file-746573745f6c6976652e7079">test_live.py</h2></header><pre><code>"""Start an isolated authenticated server and test real permissions and restart."""
+import os
+from pathlib import Path
+import secrets
+import socket
+import subprocess
+import sys
+import tempfile
+import unittest
+from pymongo import MongoClient
+
+ROOT = Path(__file__).resolve().parent
+
+
+@unittest.skipUnless(__import__('shutil').which('mongod'), 'mongod must be installed')
+class LiveServerTests(unittest.TestCase):
+    def test_accounts_permissions_and_restart(self):
+        with tempfile.TemporaryDirectory(prefix='mongo16-test-') as folder:
+            with socket.socket() as sock:
+                sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
+            env=dict(os.environ, MONGO16_DATA=folder, MONGO16_PORT=str(port),
+                     MONGO_ADMIN_PASSWORD=secrets.token_urlsafe(24),
+                     MONGO_APP_PASSWORD=secrets.token_urlsafe(24),
+                     MONGO_READER_PASSWORD=secrets.token_urlsafe(24))
+            def run(*args):
+                result=subprocess.run([sys.executable,*args],cwd=ROOT,env=env,
+                                      text=True,capture_output=True,timeout=60)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                return result.stdout
+            try:
+                run('server.py','start')
+                run('accounts.py')
+                run('demo.py')
+                run('accounts.py')  # Repeat setup preserves users and credentials.
+                run('server.py','stop')
+                run('server.py','start')
+                with MongoClient('127.0.0.1',port,username='petsApp',
+                                 password=env['MONGO_APP_PASSWORD'],authSource='pets_demo',
+                                 serverSelectionTimeoutMS=5000) as client:
+                    self.assertEqual(client.pets_demo.pets.count_documents({}),3)
+                run('demo.py')  # Rerunning seed does not duplicate records.
+            finally:
+                run('server.py','stop')
+
+    def test_imdb_search_plans(self):
+        """A small imdb database: the search helpers show a scan, then an index scan."""
+        import imdb_queries
+        with tempfile.TemporaryDirectory(prefix='mongo16-test-') as folder:
+            with socket.socket() as sock:
+                sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
+            admin=secrets.token_urlsafe(24)
+            env=dict(os.environ, MONGO16_DATA=folder, MONGO16_PORT=str(port),
+                     MONGO_ADMIN_PASSWORD=admin,
+                     MONGO_APP_PASSWORD=secrets.token_urlsafe(24),
+                     MONGO_READER_PASSWORD=secrets.token_urlsafe(24))
+            def run(*args):
+                result=subprocess.run([sys.executable,*args],cwd=ROOT,env=env,
+                                      text=True,capture_output=True,timeout=60)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            try:
+                run('server.py','start'); run('accounts.py')
+                os.environ['MONGODB_URI']=(f'mongodb://siteAdmin:{admin}@127.0.0.1:{port}'
+                                           '/?authSource=admin&amp;directConnection=true')
+                client,db=imdb_queries.connect('imdb_test')
+                db.titles.insert_many([{'_id':f'tt{i:07d}','primary_title':f'Film {i}',
+                                        'title_type':'movie','start_year':1990+i%20}
+                                       for i in range(2000)])
+                db.ratings.insert_one({'_id':'tt0000007','average_rating':7.5,'num_votes':100})
+                query=imdb_queries.build_filter('Film 7')
+                rows,work=imdb_queries.search(db,query)
+                self.assertIn('COLLSCAN',work['plan'])
+                self.assertEqual(work['docs_examined'],2000)
+                self.assertEqual((len(rows),rows[0]['average_rating']),(1,7.5))
+                imdb_queries.create_title_index(db)
+                self.assertTrue(imdb_queries.has_title_index(db))
+                rows,work=imdb_queries.search(db,query)
+                self.assertIn('IXSCAN',work['plan'])
+                self.assertEqual(work['docs_examined'],1)
+                imdb_queries.drop_title_index(db)
+                self.assertFalse(imdb_queries.has_title_index(db))
+                client.close()
+            finally:
+                os.environ.pop('MONGODB_URI',None)
+                run('server.py','stop')
+
+
+if __name__=='__main__': unittest.main()
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-16-mongodb-in-codespaces/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

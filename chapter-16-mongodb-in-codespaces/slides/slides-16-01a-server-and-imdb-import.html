@@ -1,0 +1,247 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 16: 01A Server And Imdb Import</title>
+<link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+</head><body><div class="reveal"><div class="slides"><section><h1 id="moving-to-a-mongo-server">Moving to a Mongo Server</h1>
+<p>Lecture 1: A local server and the IMDb data</p>
+<p>Install MongoDB in a Codespace, then import real movie records</p>
+</section>
+<section><h2 id="from-atlas-to-a-process-we-own">From Atlas to a Process We
+Own</h2>
+<p>Atlas ran the database server for us.</p>
+<p>Today the server is a process in our Codespace.</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Proof it worked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Install and start MongoDB</td>
+<td><code>status</code> reports it listening</td>
+</tr>
+<tr>
+<td>Create an administrator</td>
+<td>Anonymous reads are refused</td>
+</tr>
+<tr>
+<td>Import IMDb</td>
+<td>Document counts and one record</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section><h2 id="server-and-clients">Server and Clients</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mongod</td>
+<td>The database server process</td>
+</tr>
+<tr>
+<td>mongosh</td>
+<td>Interactive client</td>
+</tr>
+<tr>
+<td>PyMongo</td>
+<td>Python driver</td>
+</tr>
+<tr>
+<td>Import script</td>
+<td>A Python program using PyMongo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Installing a driver does not install a server.</strong></p>
+</section>
+<section><h2 id="where-everything-runs">Where Everything Runs</h2>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Where</th>
+<th>Reachable from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mongod</td>
+<td>Codespace</td>
+<td>127.0.0.1 only</td>
+</tr>
+<tr>
+<td>Python, mongosh</td>
+<td>Same Codespace</td>
+<td>The same machine</td>
+</tr>
+<tr>
+<td>Database files</td>
+<td><code>data/db/</code> in the workspace</td>
+<td>The server process</td>
+</tr>
+<tr>
+<td>IMDb files</td>
+<td><code>data/imdb/</code></td>
+<td>The import script</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Leave the database port unforwarded.</strong></p>
+</section>
+<section><h2 id="choose-the-codespace-size">Choose the Codespace Size</h2>
+<p>Machine sizes run from 2 to 32 cores.</p>
+<p>A free account has a monthly allowance of Codespace compute.</p>
+<p>A larger machine uses that allowance faster.</p>
+</section>
+<section><h2 id="platform-check">Platform Check</h2>
+<pre class="bash"><code>cat /etc/os-release
+dpkg --print-architecture</code></pre>
+<p><strong>Course target: Ubuntu 22.04 or 24.04, amd64.</strong></p>
+</section>
+<section><h2 id="install-the-server-and-shell">Install the Server and Shell</h2>
+<pre class="bash"><code>cd chapter-16-mongodb-in-codespaces/code
+bash install.sh
+mongod --version
+mongosh --version</code></pre>
+<p><strong>Record the versions you actually got.</strong></p>
+</section>
+<section><h2 id="python-environment">Python Environment</h2>
+<pre class="bash"><code>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt</code></pre>
+<p><strong>Same folder:
+<code>chapter-16-mongodb-in-codespaces/code</code>.</strong></p>
+</section>
+<section><h2 id="start-and-check-the-server">Start and Check the Server</h2>
+<pre class="bash"><code>python server.py start
+python server.py status
+tail -n 20 data/mongod.log</code></pre>
+<p><strong>Expected: listening on 127.0.0.1:27117 with authorization
+enabled.</strong></p>
+</section>
+<section><h2 id="create-the-first-administrator">Create the First
+Administrator</h2>
+<pre class="bash"><code>python accounts.py</code></pre>
+<p>Choose passwords when prompted. Do not put them in commands.</p>
+<p><strong>The first administrator is allowed because the server is
+empty and the connection is local.</strong></p>
+</section>
+<section><h2 id="anonymous-access-is-refused">Anonymous Access Is Refused</h2>
+<pre class="bash"><code>mongosh &quot;mongodb://127.0.0.1:27117/imdb&quot;</code></pre>
+<pre class="javascript"><code>db.titles.countDocuments({})</code></pre>
+<p><strong>Expected: <code>Unauthorized</code>.</strong></p>
+</section>
+<section><h2 id="get-the-imdb-files">Get the IMDb Files</h2>
+<pre class="bash"><code>mkdir -p data/imdb
+curl -fL -o data/imdb/title.basics.tsv.gz \
+  https://datasets.imdbws.com/title.basics.tsv.gz
+curl -fL -o data/imdb/title.ratings.tsv.gz \
+  https://datasets.imdbws.com/title.ratings.tsv.gz
+df -h .</code></pre>
+<p><strong>Personal, non-commercial use. Keep the files out of
+Git.</strong></p>
+</section>
+<section><h2 id="build-the-connection-string">Build the Connection String</h2>
+<pre class="bash"><code>read -s -p &quot;siteAdmin password: &quot; MONGO_PW; echo
+HOSTPART=&quot;127.0.0.1:27117/?authSource=admin&amp;directConnection=true&quot;
+export MONGODB_URI=&quot;mongodb://siteAdmin:${MONGO_PW}@${HOSTPART}&quot;</code></pre>
+<p><strong>The password is typed, not echoed.</strong></p>
+</section>
+<section><h2 id="import-a-subset-first">Import a Subset First</h2>
+<pre class="bash"><code>python ../../chapter-14-mongo-indexes/code/import-imdb-mongo.py \
+  --data-dir data/imdb --limit 100000</code></pre>
+<pre class="text"><code>Loading title.basics.tsv.gz
+  titles: 100,000 documents in total
+  &lt;n&gt; seconds
+Loading title.ratings.tsv.gz
+  ratings: 100,000 documents in total
+  &lt;n&gt; seconds</code></pre>
+</section>
+<section><h2 id="what-got-stored">What Got Stored</h2>
+<pre class="javascript"><code>db.titles.findOne({_id: &quot;tt0000001&quot;})
+db.ratings.findOne({_id: &quot;tt0000001&quot;})</code></pre>
+<pre class="text"><code>{ _id: &#39;tt0000001&#39;, title_type: &#39;short&#39;,
+  primary_title: &#39;Carmencita&#39;, is_adult: 0,
+  start_year: 1894, end_year: null,
+  runtime_minutes: 1, genres: &#39;Documentary,Short&#39; }
+{ _id: &#39;tt0000001&#39;, average_rating: 5.7,
+  num_votes: 2239 }</code></pre>
+</section>
+<section><h2 id="types-matter">Types Matter</h2>
+<pre class="javascript"><code>db.titles.countDocuments({start_year: 1994})
+db.titles.countDocuments({start_year: &quot;1994&quot;})</code></pre>
+<p><strong>The second count is 0: the stored year is a number, not
+text.</strong></p>
+<p>A missing year is <code>null</code>. Genres are still one text
+value.</p>
+</section>
+<section><h2 id="two-collections-one-identifier">Two Collections, One
+Identifier</h2>
+<table>
+<thead>
+<tr>
+<th>SQLite chapters</th>
+<th>MongoDB here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tables <code>titles</code>, <code>ratings</code></td>
+<td>Collections <code>titles</code>, <code>ratings</code></td>
+</tr>
+<tr>
+<td><code>tconst</code> primary key</td>
+<td><code>_id</code></td>
+</tr>
+<tr>
+<td>Foreign key between them</td>
+<td>Same <code>_id</code> value; not enforced</td>
+</tr>
+<tr>
+<td>Join in SQL</td>
+<td>Look up by <code>_id</code> in the application</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MongoDB indexes <code>_id</code> only. Everything else is a
+scan until we add indexes.</strong></p>
+</section>
+<section><h2 id="the-full-import">The Full Import</h2>
+<p>Remove <code>--limit</code> and run again with
+<code>--replace</code>.</p>
+<p>Before starting: <code>df -h .</code></p>
+<p>Write down how long each file takes.</p>
+<p><strong>About 12.9 million title documents and 1.7 million ratings.
+About 1.2 GB on disk.</strong></p>
+</section>
+<section><h2 id="stop-and-resume">Stop and Resume</h2>
+<pre class="bash"><code>python server.py stop
+python server.py start</code></pre>
+<p>Data is kept in <code>data/db/</code>.</p>
+<p><strong>The workspace survives a stop. Deleting the Codespace deletes
+the data.</strong></p>
+</section>
+<section><h2 id="lab-record-your-results">Lab: Record Your Results</h2>
+<p>Versions of <code>mongod</code> and <code>mongosh</code>.</p>
+<p>Output of <code>server.py status</code>.</p>
+<p>The anonymous read: <code>Unauthorized</code>.</p>
+<p>Both collection counts, and one <code>findOne</code> from each.</p>
+</section>
+<section><h2 id="next-indexes-and-streamlit">Next: Indexes and Streamlit</h2>
+<p>Which queries are slow, and why?</p>
+<p><code>explain</code>: collection scan or index scan?</p>
+<p>Then a Streamlit page that shows the answer and the work done to find
+it.</p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script>
+</body></html>
